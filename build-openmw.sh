@@ -190,6 +190,13 @@ function build-openmw
             git clone https://github.com/OpenMW/openmw.git
         fi
         cd ${source_dir}/openmw
+        git checkout master
+        git checkout -- .
+        git clean -df
+        git pull --rebase
+        if ! [ -z "${1}" ]; then
+            git checkout "${1}"
+        fi
         openmw_sha=$(git rev-parse HEAD)
         openmw_sha_short=$(git rev-parse --short HEAD)
         if ! [ -d ${install_prefix}/openmw-${openmw_sha_short} ]; then
@@ -204,9 +211,6 @@ function build-openmw
             [ -d ${source_dir}/openmw/build ] && rm -rf ${source_dir}/openmw/build
             mkdir -p ${source_dir}/openmw/build
             cd ${source_dir}/openmw/build
-            git checkout -- ..
-            git clean -df
-            git pull
             export CMAKE_PREFIX_PATH=${install_prefix}/ffmpeg-${ffmpeg_version}:${install_prefix}/osg-openmw:${install_prefix}/unshield-${unshield_version}:${install_prefix}/mygui-${mygui_version}:${install_prefix}/bullet3-${bullet3_version}
             export LDFLAGS="-lz -lbz2"
             # -D CMAKE_BUILD_TYPE=Release ????
@@ -274,6 +278,19 @@ function tar-it-up
 
 function main
 {
+    opts=$(getopt -o s:t: --longoptions sha:,tag: -n build-openmw -- "${@}")
+
+    eval set -- "$opts"
+
+    while true; do
+        case "$1" in
+            -s | --sha ) openmw_build_sha="$2"; shift ;;
+            -t | --tag ) openmw_build_tag="$2"; shift ;;
+            -- ) shift; break ;;
+            * ) break ;;
+        esac
+    done
+
     mkdir -p ${source_dir}
     install-pkgs
 
@@ -282,7 +299,11 @@ function main
     build-bullet
     build-unshield
     build-mygui
-    build-openmw
+    if ! [ -z ${openmw_build_sha} ]; then
+        build-openmw "${openmw_build_sha}"
+    elif ! [ -z ${openmw_build_tag} ]; then
+        build-openmw "${openmw_build_tag}"
+    fi
 
     make-bins-executable
     install-wrapper
@@ -294,4 +315,4 @@ function main
     echo
 }
 
-main
+main "${@}"
