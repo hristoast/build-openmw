@@ -303,6 +303,8 @@ function main
         build-openmw "${openmw_build_sha}"
     elif ! [ -z ${openmw_build_tag} ]; then
         build-openmw "${openmw_build_tag}"
+    else
+        build-openmw
     fi
 
     make-bins-executable
