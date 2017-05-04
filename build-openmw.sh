@@ -278,14 +278,18 @@ function tar-it-up
 
 function main
 {
-    opts=$(getopt -o s:t: --longoptions sha:,tag: -n build-openmw -- "${@}")
+    notar=false
+    sha=false
+    tag=false
+    opts=$(getopt -o Ns:t: --longoptions notar,sha:,tag: -n build-openmw -- "${@}")
 
     eval set -- "$opts"
 
     while true; do
         case "$1" in
-            -s | --sha ) openmw_build_sha="$2"; shift ;;
-            -t | --tag ) openmw_build_tag="$2"; shift ;;
+            -s | --sha ) sha=true; openmw_build_sha="$2"; shift; shift ;;
+            -t | --tag ) tag=true; openmw_build_tag="$2"; shift; shift ;;
+            -N | --notar ) notar=true; shift ;;
             -- ) shift; break ;;
             * ) break ;;
         esac
@@ -299,10 +303,14 @@ function main
     build-bullet
     build-unshield
     build-mygui
-    if ! [ -z ${openmw_build_sha} ]; then
-        build-openmw "${openmw_build_sha}"
-    elif ! [ -z ${openmw_build_tag} ]; then
+
+    # First check for a tag
+    if ${tag}; then
         build-openmw "${openmw_build_tag}"
+    # If there's no tag then build a sha
+    elif ${sha}; then
+        build-openmw "${openmw_build_sha}"
+    # No tag or sha specified; build master
     else
         build-openmw
     fi
@@ -310,7 +318,12 @@ function main
     make-bins-executable
     install-wrapper
     install-installer
-    tar-it-up
+    # Useful for when you want just OpenMW, not the entire runtime.
+    if ${notar}; then
+        echo 'No-tar option specified; not tarring!'
+    else
+        tar-it-up
+    fi
 
     echo
     echo 'DONE!'
