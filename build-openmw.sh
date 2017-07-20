@@ -11,6 +11,14 @@ ffmpeg_version=2.8.11
 mygui_version=3.2.2
 unshield_version=1.4.2
 
+function error-and-die
+{
+    if ! [ -z "${1}" ]; then
+        echo "${1}"
+    fi
+    exit 1
+}
+
 function install-pkgs-centos
 {
     echo CENTOS
@@ -53,9 +61,9 @@ function fix-libs
 function build-ffmpeg2
 {
     # TODO: --force-ffmpeg option to force rebuild?
-    printf "Checking for ffmpeg..."
+    printf "Checking for ffmpeg... "
     if ! [ -f ${install_prefix}/ffmpeg-${ffmpeg_version}/bin/ffmpeg ]; then
-        echo " NOT found!  building..."
+        echo "NOT found!  building..."
         if ! [ -d ${source_dir}/FFmpeg ]; then
             cd ${source_dir}
             git clone https://github.com/FFmpeg/FFmpeg.git
@@ -69,15 +77,15 @@ function build-ffmpeg2
         sudo make install
         fix-libs
     else
-        echo " FOUND!"
+        echo "FOUND!"
     fi
 }
 
 function build-osg-openmw
 {
-    printf "Checking for osg-openmw..."
+    printf "Checking for osg-openmw... "
     if ! [ -f ${install_prefix}/osg-openmw/lib64/libosg.so ]; then
-        echo " NOT found!  building..."
+        echo "NOT found!  building..."
         if ! [ -d ${source_dir}/osg-openmw ]; then
             cd ${source_dir}
             git clone https://github.com/OpenMW/osg.git osg-openmw
@@ -93,15 +101,15 @@ function build-osg-openmw
         sudo make install
         fix-libs
     else
-        echo " FOUND!"
+        echo "FOUND!"
     fi
 }
 
 function build-bullet
 {
-    printf "Checking for bullet..."
+    printf "Checking for bullet... "
     if ! [ -f ${install_prefix}/bullet3-${bullet3_version}/lib/libLinearMath.a ]; then
-        echo " NOT found!  building..."
+        echo "NOT found!  building..."
         if ! [ -d ${source_dir}/bullet3 ]; then
             cd ${source_dir}
             git clone https://github.com/bulletphysics/bullet3.git
@@ -121,15 +129,15 @@ function build-bullet
         sudo make install
         fix-libs
     else
-        echo " FOUND!"
+        echo "FOUND!"
     fi
 }
 
 function build-unshield
 {
-    printf "Checking for unshield..."
+    printf "Checking for unshield... "
     if ! [ -f ${install_prefix}/unshield-${unshield_version}/lib64/libunshield.so ]; then
-        echo " NOT found!  building..."
+        echo "NOT found!  building..."
         if ! [ -d ${source_dir}/unshield ]; then
             cd ${source_dir}
             git clone https://github.com/twogood/unshield.git
@@ -146,15 +154,15 @@ function build-unshield
         sudo make install
         fix-libs
     else
-        echo " FOUND!"
+        echo "FOUND!"
     fi
 }
 
 function build-mygui
 {
-    printf "Checking for mygui..."
+    printf "Checking for mygui... "
     if ! [ -f ${install_prefix}/mygui-${mygui_version}/lib/libMyGUIEngine.so ]; then
-        echo " NOT found!  building..."
+        echo "NOT found!  building..."
         if ! [ -d ${source_dir}/mygui ]; then
             cd ${source_dir}
             git clone https://github.com/MyGUI/mygui.git
@@ -175,15 +183,21 @@ function build-mygui
         sudo make install
         fix-libs
     else
-        echo " FOUND!"
+        echo "FOUND!"
     fi
+}
+
+function export-openmw-sha
+{
+    cd ${source_dir}/openmw
+    export openmw_sha=$(git rev-parse HEAD)
+    export openmw_sha_short=$(git rev-parse --short HEAD)
 }
 
 function build-openmw
 {
-    printf "Checking for openmw..."
+    echo "Checking for openmw..."
     # TODO: for some reason there ends up being root-owned shit in the build dir...
-    # TODO: check for $1 and use it as a git tag if found
     if ! [ -f ${install_prefix}/openmw/bin/openmw ]; then
         if ! [ -d ${source_dir}/openmw ]; then
             cd ${source_dir}
@@ -197,15 +211,15 @@ function build-openmw
         if ! [ -z "${1}" ]; then
             git checkout "${1}"
         fi
-        openmw_sha=$(git rev-parse HEAD)
-        openmw_sha_short=$(git rev-parse --short HEAD)
+        # Re-export the sha in case upstream changes have been pulled down
+        export-openmw-sha
         if ! [ -d ${install_prefix}/openmw-${openmw_sha_short} ]; then
-            echo " NOT found!  building..."
+            echo "NOT found!  building..."
             ls -d ${install_prefix}/openmw-* &> /dev/null || code=$?; echo OK  # There are no current installs...
-            [ -z ${code} ] && code=$?  # A currentl install was found...
+            [ -z ${code} ] && code=$?  # A current install was found...
             if [ ${code} -eq 0 ] && [ "${current_install}" != "openmw-${openmw_sha_short}" ]; then
                 # We are building a new sha, so remove the old one
-                current_install=$(ls -d ${install_prefix}/openmw-* | awk -F/ '{ print $4 }' 2>/dev/null)
+                current_install=$(ls -1d ${install_prefix}/openmw-* | awk -F/ '{ print $4 }' 2>/dev/null)
                 sudo rm -rf /opt/morrowind/${current_install}
             fi
             [ -d ${source_dir}/openmw/build ] && rm -rf ${source_dir}/openmw/build
@@ -220,10 +234,10 @@ function build-openmw
             fix-libs
             sudo sh -c "echo ${openmw_sha} > ${install_prefix}/openmw-${openmw_sha_short}/REVISION"
         else
-            echo " FOUND!"
+            echo "FOUND!"
         fi
     else
-        echo " FOUND!"
+        echo "FOUND!"
     fi
 }
 
@@ -240,10 +254,14 @@ function install-wrapper
     sudo sh -c "cat << 'EOF' > ${install_prefix}/run.sh
 #!/bin/sh
 
+# This file generated: $(date +%F-%T)
+
 export LD_LIBRARY_PATH=\$(realpath \$(dirname \${0}))/unshield-${unshield_version}/lib64:\$(realpath \$(dirname \${0})/osg-openmw/lib64):\$(realpath \$(dirname \${0})/mygui-${mygui_version}/lib):\$(realpath \$(dirname \${0}))/bullet3-${mygui_version}/lib:\$(realpath \$(dirname \${0})/ffmpeg-${ffmpeg_version}/lib)
 
 if [ \"\${1}\" = \"--launcher\" ]; then
     \$(realpath \$(dirname \${0}))/openmw-${openmw_sha_short}/bin/openmw-launcher
+elif [ \"\${1}\" = \"--cs\" ]; then
+    \$(realpath \$(dirname \${0}))/openmw-${openmw_sha_short}/bin/openmw-cs
 else
     \$(realpath \$(dirname \${0}))/openmw-${openmw_sha_short}/bin/openmw
 fi
@@ -255,6 +273,9 @@ function install-installer
 {
     sudo sh -c "cat << 'EOF' > ${install_prefix}/install.sh
 #!/bin/sh
+
+# This file generated: $(date +%F-%T)
+
 sudo sh -c \"cat << 'EOIF' > /usr/bin/morrowind
 #!/bin/sh
 /opt/morrowind/run.sh \"\\\${@}\"
@@ -266,22 +287,38 @@ EOF
 
 function tar-it-up
 {
-    # TODO: some kind of versioning, so we don't just make a new tarball each time..
-    printf "Creating morrowind-${distro}.tar.bzip2 ..."
+    version="${1}"
+    filename=morrowind-${distro}-${version}.tar.bzip2
+    printf "Creating ${filename} ... "
     cd /opt
-    [ -f morrowind-${distro}.tar.bzip2 ] && sudo rm -rf morrowind-${distro}.tar.bzip2
-    sudo tar cjpf morrowind-${distro}.tar.bzip2 morrowind
-    sudo chown $(whoami): morrowind-${distro}.tar.bzip2
-    sudo mv morrowind-${distro}.tar.bzip2 ${HOME}/
-    echo ' DONE!'
+    [ -f ${filename} ] && sudo rm -rf ${filename}
+    sudo tar cjpf ${filename} morrowind
+    sudo chown $(whoami): ${filename}
+    sudo mv ${filename} ${HOME}/
+    echo 'DONE!'
+}
+
+function tar-the-thing
+{
+    filename="${1}"
+    [[ -z ${filename} ]] && error-and-die "Need to specify a file name for 'tar-the-thing'!"
+    tarname=${filename}.tar.bzip2
+    printf "Creating ${tarname} ... "
+    cd ${install_prefix}
+    [ -f ${tarname} ] && sudo rm -rf ${tarname}
+    sudo tar cjpf ${tarname} ${filename}
+    sudo chown $(whoami): ${tarname}
+    sudo mv ${tarname} ${HOME}/
+    echo 'DONE!'
 }
 
 function main
 {
+    just_openmw=false
     notar=false
     sha=false
     tag=false
-    opts=$(getopt -o Ns:t: --longoptions notar,sha:,tag: -n build-openmw -- "${@}")
+    opts=$(getopt -o JNs:t: --longoptions just-openmw,notar,sha:,tag: -n build-openmw -- "${@}")
 
     eval set -- "$opts"
 
@@ -289,6 +326,8 @@ function main
         case "$1" in
             -s | --sha ) sha=true; openmw_build_sha="$2"; shift; shift ;;
             -t | --tag ) tag=true; openmw_build_tag="$2"; shift; shift ;;
+            # -L | --just-lib ) just_lib="${2}"; shift; shift ;;
+            -J | --just-openmw ) just_openmw=true; shift ;;
             -N | --notar ) notar=true; shift ;;
             -- ) shift; break ;;
             * ) break ;;
@@ -306,28 +345,33 @@ function main
 
     # First check for a tag
     if ${tag}; then
+        version="${openmw_build_tag}"
         build-openmw "${openmw_build_tag}"
     # If there's no tag then build a sha
     elif ${sha}; then
+        version="${openmw_build_sha}"
         build-openmw "${openmw_build_sha}"
     # No tag or sha specified; build master
     else
+        export-openmw-sha
         build-openmw
+        version="${openmw_sha_short}"
     fi
 
     make-bins-executable
     install-wrapper
     install-installer
-    # Useful for when you want just OpenMW, not the entire runtime.
+    # Don't create any package
     if ${notar}; then
         echo 'No-tar option specified; not tarring!'
+    # Only package OpenMW
+    elif ${just_openmw}; then
+        echo 'Just OpenMW option specified; packaging just that!'
+        tar-the-thing openmw-${version}
+    # Create the full runtime package
     else
-        tar-it-up
+        tar-it-up ${version}
     fi
-
-    echo
-    echo 'DONE!'
-    echo
 }
 
 main "${@}"
