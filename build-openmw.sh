@@ -1,5 +1,6 @@
 #!/bin/bash -e
 
+# TODO: add updater script?
 # https://wiki.openmw.org/index.php?title=Development_Environment_Setup
 
 build_cpus=5
@@ -16,6 +17,27 @@ function error-and-die
     if ! [ -z "${1}" ]; then
         echo "${1}"
     fi
+    exit 1
+}
+
+function help_text
+{
+    cat <<EOF
+
+Usage: build-openmw [-h] [-J] [-N] [-s SHA] [-t TAG] [--with-mygui] [--with-unshield]
+
+Build OpenMW!
+
+Optional Arguments:
+  -h, --help            Show this help message and exit
+  -J, --just-openmw     Only package OpenMW
+  -N, --no-tar          Don't package anything
+  -s SHA, --sha SHA     Build the specified git revision (sha1)
+  -t TAG, --tag TAG     Build the specified git tag
+  --with-mygui          Build MyGUI and link against it
+  --with-unshield       Build Unshield and link against it
+
+EOF
     exit 1
 }
 
@@ -37,7 +59,8 @@ function install-pkgs-void
 {
     echo VOID
     distro=void
-    sudo xbps-install -y boost-devel cmake freetype-devel gcc git libopenal-devel libtxc_dxtn libXt-devel make nasm ois-devel python-devel python3-devel qt-devel SDL2-devel zlib-devel \
+    # TODO: need MUCH better error handling here... maybe check xbps-install's output
+    sudo xbps-install -y boost-devel cmake freetype-devel gcc git libmygui-devel libopenal-devel libtxc_dxtn libunshield-devel libXt-devel make nasm ois-devel python-devel python3-devel qt-devel SDL2-devel zlib-devel \
         || echo "DIDN'T INSTALL PACKAGES -- DO WE EVEN NEED THEM??"
 }
 
@@ -54,8 +77,16 @@ function install-pkgs
 
 function fix-libs
 {
-    sudo find ${install_prefix} -type d -exec chmod 0755 {} \;
-    sudo find ${install_prefix} -type f -exec chmod 0644 {} \;
+    # TODO: find out why this fails...
+    # -- Installing: /opt/morrowind/openmw-cb32f1d60/share/games/openmw/resources/shaders/objects_vertex.glsl
+    # -- Installing: /opt/morrowind/openmw-cb32f1d60/share/games/openmw/resources/shaders/parallax.glsl
+    # -- Installing: /opt/morrowind/openmw-cb32f1d60/share/games/openmw/resources/shaders/water_nm.png
+    # -- Installing: /opt/morrowind/openmw-cb32f1d60/share/games/openmw/resources/shaders/lighting.glsl
+    # -- Installing: /opt/morrowind/openmw-cb32f1d60/share/games/openmw/resources/defaultfilters
+    # -- Installing: /opt/morrowind/openmw-cb32f1d60/share/games/openmw/data
+    # chmod: cannot access '/opt/morrowind/openmw-cb32f1d60/bin/*': No such file or directory
+    sudo find ${install_prefix} -type d -exec chmod 0755 {} \; 2>/dev/null
+    sudo find ${install_prefix} -type f -exec chmod 0644 {} \; 2>/dev/null
 }
 
 function build-ffmpeg2
@@ -156,6 +187,7 @@ function build-unshield
     else
         echo "FOUND!"
     fi
+    sudo chmod 0755 ${install_prefix}/unshield-${unshield_version}/bin/*
 }
 
 function build-mygui
@@ -196,23 +228,22 @@ function export-openmw-sha
 
 function build-openmw
 {
-    echo "Checking for openmw..."
-    # TODO: for some reason there ends up being root-owned shit in the build dir...
-    if ! [ -f ${install_prefix}/openmw/bin/openmw ]; then
+    printf "Checking for openmw... "
+    cd ${source_dir}/openmw
+    git checkout master
+    git checkout -- .
+    git clean -df
+    git pull --rebase
+    if ! [ -z "${1}" ]; then
+        git checkout "${1}"
+    fi
+    # Re-export the sha in case upstream changes have been pulled down
+    export-openmw-sha
+    if ! [ -f ${install_prefix}/openmw-${openmw_sha_short}/bin/openmw ]; then
         if ! [ -d ${source_dir}/openmw ]; then
             cd ${source_dir}
             git clone https://github.com/OpenMW/openmw.git
         fi
-        cd ${source_dir}/openmw
-        git checkout master
-        git checkout -- .
-        git clean -df
-        git pull --rebase
-        if ! [ -z "${1}" ]; then
-            git checkout "${1}"
-        fi
-        # Re-export the sha in case upstream changes have been pulled down
-        export-openmw-sha
         if ! [ -d ${install_prefix}/openmw-${openmw_sha_short} ]; then
             echo "NOT found!  building..."
             ls -d ${install_prefix}/openmw-* &> /dev/null || code=$?; echo OK  # There are no current installs...
@@ -225,7 +256,15 @@ function build-openmw
             [ -d ${source_dir}/openmw/build ] && rm -rf ${source_dir}/openmw/build
             mkdir -p ${source_dir}/openmw/build
             cd ${source_dir}/openmw/build
-            export CMAKE_PREFIX_PATH=${install_prefix}/ffmpeg-${ffmpeg_version}:${install_prefix}/osg-openmw:${install_prefix}/unshield-${unshield_version}:${install_prefix}/mygui-${mygui_version}:${install_prefix}/bullet3-${bullet3_version}
+            if ${with_mygui} && ${with_unshield}; then
+                export CMAKE_PREFIX_PATH=${install_prefix}/ffmpeg-${ffmpeg_version}:${install_prefix}/osg-openmw:${install_prefix}/unshield-${unshield_version}:${install_prefix}/mygui-${mygui_version}:${install_prefix}/bullet3-${bullet3_version}
+            elif ${with_mygui}; then
+                export CMAKE_PREFIX_PATH=${install_prefix}/ffmpeg-${ffmpeg_version}:${install_prefix}/osg-openmw:${install_prefix}/mygui-${mygui_version}:${install_prefix}/bullet3-${bullet3_version}
+            elif ${with_unshield}; then
+                export CMAKE_PREFIX_PATH=${install_prefix}/ffmpeg-${ffmpeg_version}:${install_prefix}/osg-openmw:${install_prefix}/unshield-${unshield_version}:${install_prefix}/bullet3-${bullet3_version}
+            else
+                export CMAKE_PREFIX_PATH=${install_prefix}/ffmpeg-${ffmpeg_version}:${install_prefix}/osg-openmw:${install_prefix}/bullet3-${bullet3_version}
+            fi
             export LDFLAGS="-lz -lbz2"
             # -D CMAKE_BUILD_TYPE=Release ????
             cmake -D CMAKE_INSTALL_PREFIX=${install_prefix}/openmw-${openmw_sha_short} ..
@@ -239,50 +278,20 @@ function build-openmw
     else
         echo "FOUND!"
     fi
+    if [ -h ${install_prefix}/openmw ]; then
+        /bin/rm -f ${install_prefix}/openmw
+    fi
+    _user=$(whoami)
+    sudo chown -R ${_user}: ${install_prefix}
+    cd ${install_prefix}
+    ln -s openmw-${openmw_sha_short} openmw
 }
 
 function make-bins-executable
 {
     sudo chmod 0755 ${install_prefix}/ffmpeg-${ffmpeg_version}/bin/*
     sudo chmod 0755 ${install_prefix}/osg-openmw/bin/*
-    sudo chmod 0755 ${install_prefix}/unshield-${unshield_version}/bin/*
-    sudo chmod 0755 ${install_prefix}/openmw-${openmw_sha_short}/bin/*
-}
-
-function install-wrapper
-{
-    sudo sh -c "cat << 'EOF' > ${install_prefix}/run.sh
-#!/bin/sh
-
-# This file generated: $(date +%F-%T)
-
-export LD_LIBRARY_PATH=\$(realpath \$(dirname \${0}))/unshield-${unshield_version}/lib64:\$(realpath \$(dirname \${0})/osg-openmw/lib64):\$(realpath \$(dirname \${0})/mygui-${mygui_version}/lib):\$(realpath \$(dirname \${0}))/bullet3-${mygui_version}/lib:\$(realpath \$(dirname \${0})/ffmpeg-${ffmpeg_version}/lib)
-
-if [ \"\${1}\" = \"--launcher\" ]; then
-    \$(realpath \$(dirname \${0}))/openmw-${openmw_sha_short}/bin/openmw-launcher
-elif [ \"\${1}\" = \"--cs\" ]; then
-    \$(realpath \$(dirname \${0}))/openmw-${openmw_sha_short}/bin/openmw-cs
-else
-    \$(realpath \$(dirname \${0}))/openmw-${openmw_sha_short}/bin/openmw
-fi
-EOF
-    chmod 0755 ${install_prefix}/run.sh"
-}
-
-function install-installer
-{
-    sudo sh -c "cat << 'EOF' > ${install_prefix}/install.sh
-#!/bin/sh
-
-# This file generated: $(date +%F-%T)
-
-sudo sh -c \"cat << 'EOIF' > /usr/bin/morrowind
-#!/bin/sh
-/opt/morrowind/run.sh \"\\\${@}\"
-EOIF\"
-sudo chmod 0755 /usr/bin/morrowind
-EOF
-    chmod 0755 ${install_prefix}/install.sh"
+    sudo find ${install_prefix}/openmw-${openmw_sha_short}/bin -exec chmod 0755 {} \;
 }
 
 function tar-it-up
@@ -318,17 +327,22 @@ function main
     notar=false
     sha=false
     tag=false
-    opts=$(getopt -o JNs:t: --longoptions just-openmw,notar,sha:,tag: -n build-openmw -- "${@}")
+    export with_mygui=false
+    export with_unshield=false
+    opts=$(getopt -o JNhs:t: --longoptions help,just-openmw,notar,sha:,tag:,with-mygui,with-unshield -n build-openmw -- "${@}")
 
     eval set -- "$opts"
 
     while true; do
         case "$1" in
+            -h | --help ) help_text; shift;;
             -s | --sha ) sha=true; openmw_build_sha="$2"; shift; shift ;;
             -t | --tag ) tag=true; openmw_build_tag="$2"; shift; shift ;;
             # -L | --just-lib ) just_lib="${2}"; shift; shift ;;
             -J | --just-openmw ) just_openmw=true; shift ;;
             -N | --notar ) notar=true; shift ;;
+            --with-mygui ) with_mygui=true; shift ;;
+            --with-unshield ) with_unshield=true; shift ;;
             -- ) shift; break ;;
             * ) break ;;
         esac
@@ -340,8 +354,14 @@ function main
     build-ffmpeg2
     build-osg-openmw
     build-bullet
-    build-unshield
-    build-mygui
+    if ${with_mygui}; then
+        echo WITH UNSHIELD ----------
+        build-unshield
+    fi
+    if ${with_unshield}; then
+        echo WITH MYGUI ----------
+        build-mygui
+    fi
 
     # First check for a tag
     if ${tag}; then
@@ -359,8 +379,6 @@ function main
     fi
 
     make-bins-executable
-    install-wrapper
-    install-installer
     # Don't create any package
     if ${notar}; then
         echo 'No-tar option specified; not tarring!'
