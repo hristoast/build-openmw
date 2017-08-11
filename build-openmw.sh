@@ -1,9 +1,8 @@
 #!/bin/bash -e
 
-# TODO: add updater script?
 # https://wiki.openmw.org/index.php?title=Development_Environment_Setup
 
-build_cpus=5
+build_cpus=$(cat /proc/cpuinfo | grep proc | wc -l)
 install_prefix=/opt/morrowind
 source_dir=${HOME}/src
 
@@ -20,7 +19,7 @@ function error-and-die
     exit 1
 }
 
-function help_text
+function help-text
 {
     cat <<EOF
 
@@ -28,10 +27,13 @@ Usage: build-openmw [-h] [-J] [-N] [-s SHA] [-t TAG] [--with-mygui] [--with-unsh
 
 Build OpenMW!
 
+If ran with no arguments, the latest commit in master is built and packaged
+into a tarball along with its dependencies.
+
 Optional Arguments:
   -h, --help            Show this help message and exit
   -J, --just-openmw     Only package OpenMW
-  -N, --no-tar          Don't package anything
+  -N, --no-tar          Don't create any tarballs
   -s SHA, --sha SHA     Build the specified git revision (sha1)
   -t TAG, --tag TAG     Build the specified git tag
   --with-mygui          Build MyGUI and link against it
@@ -248,11 +250,12 @@ function build-openmw
             echo "NOT found!  building..."
             ls -d ${install_prefix}/openmw-* &> /dev/null || code=$?; echo OK  # There are no current installs...
             [ -z ${code} ] && code=$?  # A current install was found...
-            if [ ${code} -eq 0 ] && [ "${current_install}" != "openmw-${openmw_sha_short}" ]; then
-                # We are building a new sha, so remove the old one
-                current_install=$(ls -1d ${install_prefix}/openmw-* | awk -F/ '{ print $4 }' 2>/dev/null)
-                sudo rm -rf /opt/morrowind/${current_install}
-            fi
+            # TODO: Make this toggle-able with a cli arg, don't do it by default though
+            # if [ ${code} -eq 0 ] && [ "${current_install}" != "openmw-${openmw_sha_short}" ]; then
+            #     # We are building a new sha, so remove the old one
+            #     current_install=$(ls -1d ${install_prefix}/openmw-* | awk -F/ '{ print $4 }' 2>/dev/null)
+            #     sudo rm -rf /opt/morrowind/${current_install}
+            # fi
             [ -d ${source_dir}/openmw/build ] && rm -rf ${source_dir}/openmw/build
             mkdir -p ${source_dir}/openmw/build
             cd ${source_dir}/openmw/build
@@ -329,18 +332,18 @@ function main
     tag=false
     export with_mygui=false
     export with_unshield=false
-    opts=$(getopt -o JNhs:t: --longoptions help,just-openmw,notar,sha:,tag:,with-mygui,with-unshield -n build-openmw -- "${@}")
+    opts=$(getopt -o JNhs:t: --longoptions help,just-openmw,no-tar,sha:,tag:,with-mygui,with-unshield -n build-openmw -- "${@}")
 
     eval set -- "$opts"
 
     while true; do
         case "$1" in
-            -h | --help ) help_text; shift;;
+            -h | --help ) help-text; shift;;
             -s | --sha ) sha=true; openmw_build_sha="$2"; shift; shift ;;
             -t | --tag ) tag=true; openmw_build_tag="$2"; shift; shift ;;
             # -L | --just-lib ) just_lib="${2}"; shift; shift ;;
             -J | --just-openmw ) just_openmw=true; shift ;;
-            -N | --notar ) notar=true; shift ;;
+            -N | --no-tar ) notar=true; shift ;;
             --with-mygui ) with_mygui=true; shift ;;
             --with-unshield ) with_unshield=true; shift ;;
             -- ) shift; break ;;
