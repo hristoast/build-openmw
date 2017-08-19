@@ -6,34 +6,25 @@ It currently only works on Void Linux and Debian Jessie but very minimal changes
 
 ## Usage
 
-Run `build-openmw.sh` to build the "OpenMW Runtime".  This produces a file called `morrowind-$distro.tar.bzip2` in the home directory of the user running the script (`sudo` is required) as well as a fully functional "OpenMW Runtime" at `/opt/morrowind`.  If you decide to copy the produced tarball to another host to run, make sure it's extracted to `/opt/morrowind` or that `/opt/morrowind` is a symlink to wherever you choose to extract it to.
+```
+./build-openmw.sh --help
 
-You can then play the game by calling the `run.sh` script that is bundled:
+Usage: build-openmw [-h] [-J] [-N] [-s SHA] [-t TAG] [--with-mygui] [--with-unshield]
 
-    /opt/morrowind/run.sh --launcher
+Build OpenMW!
 
-If you haven't yet gotten the game set up, you will definitely want to use the `--launcher` argument and go through the setup wizard.  Once that's done, you can configure the game via the normal launcher GUI (select the Morrowind.esm file and any mods you have.)
+If ran with no arguments, the latest commit in master is built and packaged into a tarball along with the dependencies which were built.
 
-You can also run the installer that comes with the package:
-
-    /opt/morrowind/install.sh
-
-This places an executable at `/usr/bin/morrowind`.
-
-You could also make a convenience function, like this for `bash`:
-
-    function morrowind
-    {
-        /opt/morrowind/run.sh ${@}
-    }
-
-Or this for `fish`:
-
-    function morrowind
-	    /opt/morrowind/run.sh $argv
-    end
-
-Then you can just do `morrowind` or `morrowind --launcher` from a terminal or launcher.
+Optional Arguments:
+  --force               Force building, even if the requested revision is already built
+  -h, --help            Show this help message and exit
+  -J, --just-openmw     Only package OpenMW
+  -N, --no-tar          Don't create any tarballs
+  -s SHA, --sha SHA     Build the specified git revision (sha1)
+  -t TAG, --tag TAG     Build the specified git tag
+  --with-mygui          Build MyGUI and link against it
+  --with-unshield       Build Unshield and link against it
+```
 
 ## Why?
 

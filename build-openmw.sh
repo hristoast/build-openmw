@@ -31,6 +31,7 @@ If ran with no arguments, the latest commit in master is built and packaged
 into a tarball along with its dependencies.
 
 Optional Arguments:
+  --force               Force building, even if the requested revision is already built
   -h, --help            Show this help message and exit
   -J, --just-openmw     Only package OpenMW
   -N, --no-tar          Don't create any tarballs
@@ -62,7 +63,7 @@ function install-pkgs-void
     echo VOID
     distro=void
     # TODO: need MUCH better error handling here... maybe check xbps-install's output
-    sudo xbps-install -y boost-devel cmake freetype-devel gcc git libmygui-devel libopenal-devel libtxc_dxtn libunshield-devel libXt-devel make nasm ois-devel python-devel python3-devel qt-devel SDL2-devel zlib-devel \
+    sudo xbps-install -y boost-devel cmake freetype-devel gcc git libmygui-devel libopenal-devel libopenjpeg2-devel libtxc_dxtn libunshield-devel libXt-devel make nasm ois-devel python-devel python3-devel qt-devel SDL2-devel zlib-devel \
         || echo "DIDN'T INSTALL PACKAGES -- DO WE EVEN NEED THEM??"
 }
 
@@ -241,13 +242,18 @@ function build-openmw
     fi
     # Re-export the sha in case upstream changes have been pulled down
     export-openmw-sha
-    if ! [ -f ${install_prefix}/openmw-${openmw_sha_short}/bin/openmw ]; then
+    if ! [ -f ${install_prefix}/openmw-${openmw_sha_short}/bin/openmw ] || ${force}; then
         if ! [ -d ${source_dir}/openmw ]; then
             cd ${source_dir}
             git clone https://github.com/OpenMW/openmw.git
         fi
-        if ! [ -d ${install_prefix}/openmw-${openmw_sha_short} ]; then
-            echo "NOT found!  building..."
+        if ! [ -d ${install_prefix}/openmw-${openmw_sha_short} ] || ${force}; then
+            if ${force}; then
+                echo 'openmw-${openmw_sha_short} exists but requested to force!'
+                sudo /bin/rm -rf ${install_prefix}/openmw-${openmw_sha_short}
+            else
+                echo "NOT found!  building..."
+            fi
             ls -d ${install_prefix}/openmw-* &> /dev/null || code=$?; echo OK  # There are no current installs...
             [ -z ${code} ] && code=$?  # A current install was found...
             # TODO: Make this toggle-able with a cli arg, don't do it by default though
@@ -326,18 +332,20 @@ function tar-the-thing
 
 function main
 {
+    force=false
     just_openmw=false
     notar=false
     sha=false
     tag=false
     export with_mygui=false
     export with_unshield=false
-    opts=$(getopt -o JNhs:t: --longoptions help,just-openmw,no-tar,sha:,tag:,with-mygui,with-unshield -n build-openmw -- "${@}")
+    opts=$(getopt -o JNhs:t: --longoptions force,help,just-openmw,no-tar,sha:,tag:,with-mygui,with-unshield -n build-openmw -- "${@}")
 
     eval set -- "$opts"
 
     while true; do
         case "$1" in
+            --force ) force=true; shift;;
             -h | --help ) help-text; shift;;
             -s | --sha ) sha=true; openmw_build_sha="$2"; shift; shift ;;
             -t | --tag ) tag=true; openmw_build_tag="$2"; shift; shift ;;
