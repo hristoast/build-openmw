@@ -23,7 +23,7 @@ function help-text
 {
     cat <<EOF
 
-Usage: build-openmw [-h] [-J] [-N] [-s SHA] [-t TAG] [--with-mygui] [--with-unshield]
+Usage: build-openmw [-h] [-J] [-M] [-N] [-s SHA] [-t TAG] [--with-mygui] [--with-unshield]
 
 Build OpenMW!
 
@@ -34,6 +34,7 @@ Optional Arguments:
   --force               Force building, even if the requested revision is already built
   -h, --help            Show this help message and exit
   -J, --just-openmw     Only package OpenMW
+  -M, --mp              Build TES3MP (Multiplayer fork of OpenMW - EXPERIMENTAL)
   -N, --no-tar          Don't create any tarballs
   -s SHA, --sha SHA     Build the specified git revision (sha1)
   -t TAG, --tag TAG     Build the specified git tag
@@ -54,16 +55,16 @@ function install-pkgs-centos
 function install-pkgs-debian
 {
     echo DEBIAN
-    distro=debian
+    export distro=debian
     sudo apt install -y --force-yes build-essential cmake git libboost-dev libboost-filesystem-dev libboost-program-options-dev libboost-system-dev libbz2-dev libfreetype6-dev libgl1-mesa-dev libopenal-dev libqt4-dev libsdl2-dev nasm zlib1g-dev
 }
 
 function install-pkgs-void
 {
     echo VOID
-    distro=void
+    export distro=void
     # TODO: need MUCH better error handling here... maybe check xbps-install's output
-    sudo xbps-install -y boost-devel cmake freetype-devel gcc git libmygui-devel libopenal-devel libopenjpeg2-devel libtxc_dxtn libunshield-devel libXt-devel make nasm ois-devel python-devel python3-devel qt-devel SDL2-devel zlib-devel \
+    sudo xbps-install -y boost-devel cmake freetype-devel gcc git libmygui-devel libopenal-devel libopenjpeg2-devel libtxc_dxtn libunshield-devel libXt-devel make nasm ois-devel python-devel python3-devel qt-devel qt5-devel SDL2-devel zlib-devel \
         || echo "DIDN'T INSTALL PACKAGES -- DO WE EVEN NEED THEM??"
 }
 
@@ -222,11 +223,193 @@ function build-mygui
     fi
 }
 
+function build-lib
+{
+    _lib="${1}"
+    echo ${_lib}
+    exit 1
+}
+
+function build-callff
+{
+    printf "Checking for CallFF... "
+    if ! [ -f ${install_prefix}/callff/libcallff.a ] || ! [ -d ${install_prefix}/callff/include ]; then
+        echo "NOT found!  building..."
+        if ! [ -d ${source_dir}/CallFF ]; then
+            cd ${source_dir}
+            git clone https://github.com/Koncord/CallFF
+        fi
+        [ -d ${source_dir}/CallFF/build ] && rm -rf ${source_dir}/CallFF/build
+        mkdir -p ${source_dir}/CallFF/build
+        cd ${source_dir}/CallFF/build
+        git checkout -- ..
+        git clean -df
+        cmake ..
+        make -j${build_cpus}
+        cd ..
+        ! [ -d ${install_prefix}/callff ] && mkdir -p ${install_prefix}/callff
+        /bin/cp -f ./build/src/libcallff.a ${install_prefix}/callff
+        /bin/cp -fr ./include ${install_prefix}/callff/
+        echo "CALLFF DONE!"
+    else
+        echo "FOUND!"
+    fi
+}
+
+function build-raknet
+{
+    printf "Checking for RakNet... "
+    if ! [ -f ${install_prefix}/raknet/libRakNetLibStatic.a ] || ! [ -f ${install_prefix}/raknet/libRakNetDLL.so ] || ! [ -d ${install_prefix}/raknet/include ]; then
+        echo "NOT found!  building..."
+        if ! [ -d ${source_dir}/RakNet ]; then
+            cd ${source_dir}
+            git clone https://github.com/TES3MP/RakNet.git
+        fi
+        [ -d ${source_dir}/RakNet/build ] && rm -rf ${source_dir}/RakNet/build
+        mkdir -p ${source_dir}/RakNet/build
+        cd ${source_dir}/RakNet/build
+        git checkout -- ..
+        git clean -df
+        cmake ..
+        make -j${build_cpus}
+        ! [ -d ${install_prefix}/raknet ] && mkdir -p ${install_prefix}/raknet
+        /bin/cp -f ./lib/libRakNetDLL.so ${install_prefix}/raknet
+        /bin/cp -f ./lib/libRakNetLibStatic.a ${install_prefix}/raknet
+        cd ..
+        /bin/cp -fr ./include ${install_prefix}/raknet
+        cd ${install_prefix}/raknet/include
+        ln -fs RakNet raknet
+        echo "RAKNET DONE!"
+    else
+        echo "FOUND!"
+    fi
+}
+
+function build-terra
+{
+    # Does not compile on void.... just use the precompiled one but...
+    # TODO: remove this in favor of building against lua
+    if ! [ -d ${install_prefix}/terra ]; then
+        cd ${install_prefix}
+        wget https://github.com/zdevito/terra/releases/download/release-2016-02-26/terra-Linux-x86_64-2fa8d0a.zip
+        unzip terra-Linux-x86_64-2fa8d0a.zip
+        mv terra-Linux-x86_64-2fa8d0a terra
+        /bin/rm -f terra-Linux-x86_64-2fa8d0a.zip
+    fi
+}
+
 function export-openmw-sha
 {
     cd ${source_dir}/openmw
     export openmw_sha=$(git rev-parse HEAD)
     export openmw_sha_short=$(git rev-parse --short HEAD)
+}
+
+function export-app-sha
+{
+    app_name=${1}
+    [ -d ${source_dir}/${app_name} ] || error-and-die "Bad app name provided - WTF is ${app_name} ?!?!"
+    cd ${source_dir}/${app_name}
+    export app_sha=$(git rev-parse HEAD)
+    export app_sha_short=$(git rev-parse --short HEAD)
+}
+
+function build-tes3mp
+{
+    # THANK YOU SO FETCHING MUCH:
+    # https://github.com/GrimKriegor/TES3MP-deploy
+    if ${multiplayer}; then
+        _app=tes3mp
+        _app_exe=${app}-server
+        _clone_url=https://github.com/TES3MP/openmw-tes3mp.git
+        _cmake_prefix="${install_prefix}/ffmpeg-${ffmpeg_version}:${install_prefix}/osg-openmw:${install_prefix}/bullet3-${bullet3_version}"
+        _code_dir=${_app}
+    else
+        echo MULTIPLAYER NOT SELECTED
+        exit 1
+    fi
+    printf "Checking for ${_app}... "
+    if [ -d ${source_dir}/${_app} ]; then
+        cd ${source_dir}/${_app}
+        git checkout master
+        git checkout -- .
+        git clean -df
+        git pull --rebase
+        if ! [ -z "${1}" ]; then
+            git checkout "${1}"
+        fi
+        # Re-export the sha in case upstream changes have been pulled down
+        export-app-sha ${_app}
+    fi
+    if ! [ -f ${install_prefix}/${_app}-${app_sha_short}/bin/${_app_exe} ] || ${force}; then
+        if ! [ -d ${source_dir}/${_app} ]; then
+            cd ${source_dir}
+            git clone ${_clone_url} ${_app}
+        fi
+        export-app-sha ${_app}
+        _cmake_params="-Wno-dev -D CMAKE_BUILD_TYPE=Release -D BUILD_OPENCS=OFF -D CMAKE_CXX_STANDARD=14 -D CallFF_INCLUDES=${install_prefix}/callff/include -D CallFF_LIBRARY=${install_prefix}/callff/libcallff.a -D RakNet_INCLUDES=${install_prefix}/raknet/include -D RakNet_LIBRARY_DEBUG=${install_prefix}/raknet/libRakNetLibStatic.a -D RakNet_LIBRARY_RELEASE=${install_prefix}/raknet/libRakNetLibStatic.a -D Terra_INCLUDES=${install_prefix}/terra/include -D Terra_LIBRARY_RELEASE=${install_prefix}/terra/lib/libterra.a"
+        if ! [ -d ${install_prefix}/${_app}-${app_sha_short} ] || ${force}; then
+            if ${force}; then
+                echo "${_app}-${app_sha_short} exists but requested to force!  FORCING!!!!"
+                sudo /bin/rm -rf ${_app}-${app_sha_short}
+            else
+                echo "${_app} NOT found!  building..."
+            fi
+            ls -d ${install_prefix}/${_app}-* &> /dev/null || code=$?; echo OK  # There are no current installs...
+            [ -z ${code} ] && code=$?  # A current install was found...
+            [ -d ${source_dir}/${_code_dir}/build ] && rm -rf ${source_dir}/${_code_dir}/build
+            mkdir -p ${source_dir}/${_code_dir}/build
+            cd ${source_dir}/${_code_dir}/build
+            if ${with_mygui} && ${with_unshield}; then
+                export CMAKE_PREFIX_PATH=${install_prefix}/ffmpeg-${ffmpeg_version}:${install_prefix}/osg-openmw:${install_prefix}/unshield-${unshield_version}:${install_prefix}/mygui-${mygui_version}:${install_prefix}/bullet3-${bullet3_version}
+            elif ${with_mygui}; then
+                export CMAKE_PREFIX_PATH=${install_prefix}/ffmpeg-${ffmpeg_version}:${install_prefix}/osg-openmw:${install_prefix}/mygui-${mygui_version}:${install_prefix}/bullet3-${bullet3_version}
+            elif ${with_unshield}; then
+                export CMAKE_PREFIX_PATH=${install_prefix}/ffmpeg-${ffmpeg_version}:${install_prefix}/osg-openmw:${install_prefix}/unshield-${unshield_version}:${install_prefix}/bullet3-${bullet3_version}
+            else
+                export CMAKE_PREFIX_PATH=${_cmake_prefix}
+            fi
+            if [ $distro = void ] && ! [ -h /usr/lib/libtinfo.so.6.0 ] || ! [ -h /usr/lib/libtinfo.so ]; then
+                echo MAKING libtinfo COMPAT SYMLINK ........................
+                sudo ln -fs /usr/lib/libncurses.so.6.0 /usr/lib/libtinfo.so.6.0
+                sudo ln -fs /usr/lib/libtinfo.so.6.0 /usr/lib/libtinfo.so
+            fi
+            mkdir -p ${install_prefix}/${_app}-${app_sha_short}
+            export LDFLAGS="-lz -lbz2 -lncurses"
+            cmake ${_cmake_params} ..
+            make -j${build_cpus}
+            /bin/cp -fr apps components docs extern files resources bsatool esmtool gamecontrollerdb.txt openmw-cs.cfg openmw-essimporter openmw-iniimporter openmw-launcher openmw-wizard openmw.appdata.xml openmw.cfg openmw.desktop settings-default.cfg tes3mp tes3mp-browser tes3mp-client-default.cfg tes3mp-server tes3mp-server-default.cfg ${install_prefix}/${_app}-${app_sha_short}/
+            fix-libs
+            sudo sh -c "echo ${app_sha} > ${install_prefix}/${_app}-${app_sha_short}/REVISION"
+            if [ ${_app} = tes3mp ] && ! [ -d ${install_prefix}/${_app}-${app_sha_short}/PluginExamples ]; then
+                echo ADDING PLUGIN EXAMPLES....................
+                cd ${install_prefix}/${_app}-${app_sha_short}
+                git clone https://github.com/TES3MP/PluginExamples.git
+                sed -i "s|home = .*|home = ./PluginExamples|g" tes3mp-server-default.cfg
+            fi
+        else
+            echo "${_app} FOUND!"
+        fi
+    else
+        echo "${_app} FOUND!"
+    fi
+    if [ ${_app} = openmw ]; then
+        if [ -h ${install_prefix}/openmw ]; then
+            /bin/rm -f ${install_prefix}/openmw
+        fi
+        _user=$(whoami)
+        sudo chown -R ${_user}: ${install_prefix}
+        cd ${install_prefix}
+        ln -s openmw-${openmw_sha_short} openmw
+    else
+        if [ -h ${install_prefix}/${_app} ]; then
+            /bin/rm -f ${install_prefix}/${_app}
+        fi
+        _user=$(whoami)
+        sudo chown -R ${_user}: ${install_prefix}
+        cd ${install_prefix}
+        ln -s ${_app}-${app_sha_short} ${_app}
+    fi
 }
 
 function build-openmw
@@ -275,8 +458,7 @@ function build-openmw
                 export CMAKE_PREFIX_PATH=${install_prefix}/ffmpeg-${ffmpeg_version}:${install_prefix}/osg-openmw:${install_prefix}/bullet3-${bullet3_version}
             fi
             export LDFLAGS="-lz -lbz2"
-            # -D CMAKE_BUILD_TYPE=Release ????
-            cmake -D CMAKE_INSTALL_PREFIX=${install_prefix}/openmw-${openmw_sha_short} ..
+            cmake -D CMAKE_BUILD_TYPE=Release -D CMAKE_INSTALL_PREFIX=${install_prefix}/openmw-${openmw_sha_short} ..
             make -j${build_cpus}
             sudo make install
             fix-libs
@@ -334,12 +516,13 @@ function main
 {
     force=false
     just_openmw=false
+    export multiplayer=false
     notar=false
     sha=false
     tag=false
     export with_mygui=false
     export with_unshield=false
-    opts=$(getopt -o JNhs:t: --longoptions force,help,just-openmw,no-tar,sha:,tag:,with-mygui,with-unshield -n build-openmw -- "${@}")
+    opts=$(getopt -o JMNhs:t: --longoptions force,help,just-openmw,mp,no-tar,sha:,tag:,with-mygui,with-unshield -n build-openmw -- "${@}")
 
     eval set -- "$opts"
 
@@ -351,6 +534,7 @@ function main
             -t | --tag ) tag=true; openmw_build_tag="$2"; shift; shift ;;
             # -L | --just-lib ) just_lib="${2}"; shift; shift ;;
             -J | --just-openmw ) just_openmw=true; shift ;;
+            -M | --mp ) multiplayer=true; shift ;;
             -N | --no-tar ) notar=true; shift ;;
             --with-mygui ) with_mygui=true; shift ;;
             --with-unshield ) with_unshield=true; shift ;;
@@ -374,19 +558,29 @@ function main
         build-mygui
     fi
 
-    # First check for a tag
-    if ${tag}; then
-        version="${openmw_build_tag}"
-        build-openmw "${openmw_build_tag}"
-    # If there's no tag then build a sha
-    elif ${sha}; then
-        version="${openmw_build_sha}"
-        build-openmw "${openmw_build_sha}"
-    # No tag or sha specified; build master
+    if ${multiplayer}; then
+        build-callff
+        build-raknet
+        # TODO: build against lua, not terra
+        build-terra
+        build-tes3mp
+        echo "MULTIPLAYER DONE!!!!"
+        exit 0
     else
-        export-openmw-sha
-        build-openmw
-        version="${openmw_sha_short}"
+        # First check for a tag
+        if ${tag}; then
+            version="${openmw_build_tag}"
+            build-openmw "${openmw_build_tag}"
+            # If there's no tag then build a sha
+        elif ${sha}; then
+            version="${openmw_build_sha}"
+            build-openmw "${openmw_build_sha}"
+            # No tag or sha specified; build master
+        else
+            export-openmw-sha
+            build-openmw
+            version="${openmw_sha_short}"
+        fi
     fi
 
     make-bins-executable
