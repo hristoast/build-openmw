@@ -179,6 +179,7 @@ def get_distro() -> tuple:
 def get_openmw_sha(src_dir: str, version: str, pull=True) -> str:
     os.chdir(os.path.join(src_dir, "openmw"))
     if pull:
+        emit_log("Fetching latest sources ...")
         execute_shell(["git", "fetch", "--all"])[1][0]
 
     if '/' not in version:
@@ -232,7 +233,7 @@ def parse_argv(_argv: list) -> None:
                          help="How many cores to use with make.  Default: {}".format(CPUS))
     options.add_argument("-J", "--just-openmw", action="store_true",
                          help="If packaging, include just OpenMW.")
-    options.add_argument("--no-pull", action="store_true",
+    options.add_argument("-N", "--no-pull", action="store_true",
                          help="Don't do a 'git fetch --all' on the OpenMW sources.")
     options.add_argument("-n", "--no-pkg", "--no-tar", action="store_true",
                          help="Don't create a package.")
