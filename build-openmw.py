@@ -21,7 +21,7 @@ DEBIAN_PKGS = "TODO"
 UBUNTU_PKGS = "TODO"
 VOID_PKGS = "boost-devel cmake freetype-devel gcc git libmygui-devel libopenal-devel libopenjpeg2-devel libtxc_dxtn libunshield-devel liblzma-devel libXt-devel make nasm ois-devel python-devel python3-devel qt-devel SDL2-devel zlib-devel".split()
 
-VERSION = "1.0"
+VERSION = "1.1"
 
 
 def emit_log(msg: str, level=logging.INFO, quiet=False, *args, **kwargs) -> None:
@@ -114,8 +114,8 @@ def build_library(libname, check_file=None, clone_dest=None, cmake=True,
 
         emit_log("{} running make clean ...".format(libname))
         out, err = execute_shell(["make", "clean"])[1]
-        if err:
-            error_and_die(err.decode("utf-8"))
+        # if err:
+        #     error_and_die(err.decode("utf-8"))
 
         emit_log("{} running configure ...".format(libname))
         out, err = execute_shell(["./configure",
