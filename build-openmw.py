@@ -258,8 +258,8 @@ def main() -> None:
     install_prefix = INSTALL_PREFIX
     parsed = parse_argv(sys.argv[1:])
     rev = "master"
-    just_openmw = False
-    no_pkg = False
+    # just_openmw = False
+    # no_pkg = False
     pull = True
     skip_install_pkgs = False
     src_dir = SRC_DIR
@@ -405,6 +405,8 @@ def main() -> None:
     if os.path.islink("openmw"):
         os.remove("openmw")
     os.symlink("openmw-{}".format(openmw_sha), "openmw")
+
+    # TODO: Create tar file
 
 
 if __name__ == '__main__':
