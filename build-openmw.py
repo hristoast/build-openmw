@@ -6,6 +6,7 @@ import os
 import shutil
 import subprocess
 import sys
+import tarfile
 
 BULLET_VERSION = "2.86.1"
 MYGUI_VERSION = "3.2.2"
@@ -24,7 +25,7 @@ UBUNTU_PKGS = DEBIAN_PKGS
 VOID_PKGS = "boost-devel cmake ffmpeg-devel freetype-devel gcc git libavformat libavutil libmygui-devel libopenal-devel libopenjpeg2-devel libswresample libswscale libtxc_dxtn liblzma-devel libXt-devel make nasm ois-devel python-devel python3-devel qt-devel SDL2-devel zlib-devel".split()
 
 PROG = 'build-openmw'
-VERSION = "1.1"
+VERSION = "1.2"
 
 
 def emit_log(msg: str, level=logging.INFO, quiet=False, *args, **kwargs) -> None:
@@ -305,11 +306,9 @@ def main() -> None:
         emit_log("'-j{}' will be used with make!".format(cpus))
     if parsed.just_openmw:
         just_openmw = parsed.just_openmw
-        emit_log(just_openmw, level=logging.DEBUG)  # TODO: remove this
         emit_log("Just OpenMW enabled!")
     if parsed.no_pkg:
         no_pkg = parsed.no_pkg
-        emit_log(no_pkg, level=logging.DEBUG)  # TODO: remove this
         emit_log("No package will be made!")
     if parsed.no_pull:
         pull = False
@@ -429,9 +428,28 @@ def main() -> None:
         os.remove("openmw")
     os.symlink("openmw-{}".format(openmw_sha), "openmw")
 
-    # TODO: Create tar file
-    # ⌜
-    # ∟
+    if not no_pkg:
+        if not just_openmw:
+            os.chdir(os.path.join(install_prefix, ".."))
+            # TODO: Possible option to not exclude src...
+            exclude = "morrowind/src"
+            dest = "morrowind.tar.bzip2"
+            src = "morrowind"
+        else:
+            os.chdir(install_prefix)
+            exclude = "src"
+            dest = "openmw-{}.tar.bzip2".format(openmw_sha)
+            src = "openmw-{}".format(openmw_sha)
+
+        backup_file = os.path.join(out_dir, dest)
+        emit_log("Creating {} ...".format(backup_file))
+        if os.path.exists(backup_file) and os.path.isfile(backup_file):
+            os.remove(backup_file)
+        tar = tarfile.open(backup_file, "w:bz2")
+        tar.add(src, filter=lambda x: None if x.name == exclude else x)
+        tar.close()
+        emit_log("{} created!".format(backup_file))
+
     emit_log("END {0} run at {1}".format(
         PROG, datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
     end = datetime.datetime.now()
