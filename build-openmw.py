@@ -8,7 +8,6 @@ import subprocess
 import sys
 
 BULLET_VERSION = "2.86.1"
-FFMPEG_VERSION = "n2.8.13"
 MYGUI_VERSION = "3.2.2"
 UNSHIELD_VERSION = "1.4.2"
 
@@ -84,7 +83,37 @@ def build_library(libname, check_file=None, clone_dest=None, cmake=True,
                   force=False, install_prefix=INSTALL_PREFIX, git_url=None,
                   quiet=False, src_dir=SRC_DIR, verbose=False, version='master'):
 
-    def _cmake():
+    def _git_clean_src():
+        os.chdir(os.path.join(src_dir, clone_dest))
+        emit_log("{} executing source clean!".format(libname))
+        execute_shell(["git", "checkout", "--", "."], verbose=verbose)
+        execute_shell(["git", "clean", "-df"], verbose=verbose)
+        emit_log("{} resetting source to the desired rev ({rev})".format(
+            libname, rev=version))
+        execute_shell(["git", "checkout", version], verbose=verbose)
+        execute_shell(["git", "reset", "--hard", "origin/{}".format(version)],
+                      verbose=verbose)
+
+    if not clone_dest:
+        clone_dest = libname
+    if os.path.exists(check_file) and os.path.isfile(check_file) and not force:
+        emit_log("{} found!".format(libname))
+    else:
+        emit_log("{} building now ...".format(libname))
+        if not os.path.exists(os.path.join(src_dir, clone_dest)):
+            emit_log("{} source directory not found, cloning...".format(clone_dest))
+            os.chdir(src_dir)
+            execute_shell(["git", "clone", git_url, clone_dest], verbose=verbose)[1]
+            if not os.path.exists(os.path.join(src_dir, libname)):
+                error_and_die("Could not clone {} for some reason!".format(clone_dest))
+
+        if force and os.path.exists(os.path.join(install_prefix, libname)):
+            emit_log("{} forcing removal of previous install!".format(libname))
+            shutil.rmtree(os.path.join(install_prefix, libname))
+
+        _git_clean_src()
+
+        os.chdir(os.path.join(src_dir, clone_dest))
         emit_log("{} building with cmake!".format(libname))
         build_dir = os.path.join(src_dir, clone_dest, "build")
         if os.path.isdir(build_dir):
@@ -117,72 +146,6 @@ def build_library(libname, check_file=None, clone_dest=None, cmake=True,
             error_and_die(err.decode("utf-8"))
 
         emit_log("{} installed successfully!".format(libname))
-
-    def _configure_make():
-        emit_log("{} building with configure and make!".format(libname))
-
-        emit_log("{} running make clean ...".format(libname))
-        out, err = execute_shell(["make", "clean"], verbose=verbose)[1]
-        # if err:
-        #     error_and_die(err.decode("utf-8"))
-
-        emit_log("{} running configure ...".format(libname))
-        out, err = execute_shell(["./configure",
-                                  "--prefix={0}/{1}".format(install_prefix,
-                                                            libname)],
-                                 verbose=verbose)[1]
-        if err:
-            error_and_die(err.decode("utf-8"))
-
-        emit_log("{} running make (this will take a while) ...".format(libname))
-        exitcode, output = execute_shell(["make", "-j{}".format(cpus)],
-                                         verbose=verbose)
-        if exitcode != 0:
-            emit_log(output[1])
-            error_and_die("make exited nonzero!")
-
-        emit_log("{} running make install ...".format(libname))
-        out, err = execute_shell(["make", "install"], verbose=verbose)[1]
-        if err:
-            error_and_die(err.decode("utf-8"))
-
-        emit_log("{} installed successfully!".format(libname))
-
-    def _git_clean_src():
-        os.chdir(os.path.join(src_dir, clone_dest))
-        emit_log("{} executing source clean!".format(libname))
-        execute_shell(["git", "checkout", "--", "."], verbose=verbose)
-        execute_shell(["git", "clean", "-df"], verbose=verbose)
-        emit_log("{} resetting source to the desired rev ({rev})".format(
-            libname, rev=version))
-        execute_shell(["git", "checkout", version], verbose=verbose)
-        execute_shell(["git", "reset", "--hard", "origin/{}".format(version)],
-                      verbose=verbose)
-
-    if not clone_dest:
-        clone_dest = libname
-    if os.path.exists(check_file) and os.path.isfile(check_file) and not force:
-        emit_log("{} found!".format(libname))
-    else:
-        emit_log("{} building now ...".format(libname))
-        if not os.path.exists(os.path.join(src_dir, clone_dest)):
-            emit_log("{} source directory not found, cloning...".format(clone_dest))
-            os.chdir(src_dir)
-            execute_shell(["git", "clone", git_url, clone_dest], verbose=verbose)[1]
-            if not os.path.exists(os.path.join(src_dir, libname)):
-                error_and_die("Could not clone {} for some reason!".format(clone_dest))
-
-        if force and os.path.exists(os.path.join(install_prefix, libname)):
-            emit_log("{} forcing removal of previous install!".format(libname))
-            shutil.rmtree(os.path.join(install_prefix, libname))
-
-        _git_clean_src()
-
-        os.chdir(os.path.join(src_dir, clone_dest))
-        if cmake:
-            _cmake()
-        else:
-            _configure_make()
 
 
 def get_distro() -> tuple:
@@ -259,7 +222,6 @@ def parse_argv(_argv: list) -> None:
     parser.add_argument("--version", action="version", version=VERSION, help=argparse.SUPPRESS)
     options = parser.add_argument_group("Options")
     options.add_argument("--force-bullet", action="store_true", help="Force build LibBullet.")
-    options.add_argument("--force-ffmpeg", action="store_true", help="Force build FFMpeg.")
     options.add_argument("--force-mygui", action="store_true", help="Force build MyGUI.")
     options.add_argument("--force-openmw", action="store_true", help="Force build OpenMW.")
     options.add_argument("--force-osg", action="store_true", help="Force build OSG.")
@@ -295,7 +257,6 @@ def main() -> None:
     cpus = CPUS
     distro = None
     force_bullet = False
-    force_ffmpeg = False
     force_mygui = False
     force_openmw = False
     force_osg = False
@@ -313,7 +274,6 @@ def main() -> None:
 
     if parsed.force_all:
         force_bullet = True
-        force_ffmpeg = True
         force_mygui = True
         force_openmw = True
         force_osg = True
@@ -322,9 +282,6 @@ def main() -> None:
     if parsed.force_bullet:
         force_bullet = True
         emit_log("Forcing build of LibBullet!")
-    if parsed.force_ffmpeg:
-        force_ffmpeg = True
-        emit_log("Forcing build of FFMPEG!")
     if parsed.force_mygui:
         force_mygui = True
         emit_log("Forcing build of MyGUI!")
@@ -389,18 +346,6 @@ def main() -> None:
     ensure_dir(install_prefix)
     ensure_dir(src_dir)
 
-    # FFMPEG
-    build_library("ffmpeg",
-                  check_file=os.path.join(install_prefix, "ffmpeg", "bin", "ffmpeg"),
-                  cmake=False,
-                  cpus=cpus,
-                  force=force_ffmpeg,
-                  git_url='https://github.com/FFmpeg/FFmpeg.git',
-                  install_prefix=install_prefix,
-                  src_dir=src_dir,
-                  verbose=verbose,
-                  version=FFMPEG_VERSION)
-
     # OSG-OPENMW
     build_library("osg-openmw",
                   check_file=os.path.join(install_prefix, "osg-openmw", "lib64", "libosg.so"),
@@ -460,7 +405,7 @@ def main() -> None:
         # There's no sha yet since the source hasn't been cloned.
         openmw = "openmw"
     build_env = os.environ.copy()
-    build_env["CMAKE_PREFIX_PATH"] = "{0}/ffmpeg:{0}/osg-openmw:{0}/unshield:{0}/mygui:{0}/bullet".format(
+    build_env["CMAKE_PREFIX_PATH"] = "{0}/osg-openmw:{0}/unshield:{0}/mygui:{0}/bullet".format(
         install_prefix)
     build_env["LDFLAGS"] = "-llzma -lz -lbz2"
     build_library(openmw,
