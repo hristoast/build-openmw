@@ -2,30 +2,49 @@
 
 This script aims to provide an optimized, portable, and reproducible way to build OpenMW oneself.
 
-It currently only works on Void Linux and Debian Jessie but very minimal changes should only be required to expand to other distributions.
+## Installation
+
+The script requires Python 3.3 or higher and can be ran directly out of a cloned repo, or installed system-wide like so:
+
+    make install
+
+## Uninstall
+
+To uninstall what was installed by this:
+
+    rm -rf /opt/morrowind/*
+    
+You'll be left with an empty directory.  If you've used a different install prefix, then adjust your delete command appropriately.
 
 ## Usage
 
-```
-./build-openmw.sh --help
+Run `build-openmw.py` with no arguments to get everything you need - it will potentially take several hours to complete unless you have a powerful CPU and a lot of RAM.  Subsequent runs will only rebuild OpenMW, and only if there have been changes in the upstream repository (unless a `--force-*` argument is given.)
 
-Usage: build-openmw [-h] [-J] [-M] [-N] [-s SHA] [-t TAG] [--with-mygui] [--with-unshield]
+Pass the `--help` argument to see advanced usage options.
 
-Build OpenMW!
+## Advanced
 
-If ran with no arguments, the latest commit in master is built and packaged into a tarball along with the dependencies which were built.
+### Build a branch of a fork
 
-Optional Arguments:
-  --force               Force building, even if the requested revision is already built
-  -h, --help            Show this help message and exit
-  -J, --just-openmw     Only package OpenMW
-  -N, --no-tar          Don't create any tarballs
-  -M, --mp              Build TES3MP (Multiplayer fork of OpenMW - EXPERIMENTAL)
-  -s SHA, --sha SHA     Build the specified git revision (sha1)
-  -t TAG, --tag TAG     Build the specified git tag
-  --with-mygui          Build MyGUI and link against it
-  --with-unshield       Build Unshield and link against it
-```
+This script allows one to easily build any git rev.  If you want to build a branch from a fork, for example, you would first ensure you've added the remote for the fork you want to build:
+
+    git remote add anyoldname3 https://github.com/AnyOldName3/openmw.git
+
+Then, pass your branch as an argument:
+
+    build-openmw -n -S -r anyoldname3/osgshadow-test-vdsm
+
+This will build and not package the tip of the `osgshadow-test-vdsm` branch from Anyoldname3's fork.
+
+### Rebuild a dependency
+
+If for some reason you want to rebuild any dependency (maybe osg-openmw has an update), you can use the various force flags:
+
+    # Force rebuild OSG
+    build-openmw --force-osg
+
+    # Force rebuild everything
+    build-openmw --force-all
 
 ## Why?
 
