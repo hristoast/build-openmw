@@ -457,12 +457,12 @@ def main() -> None:
     # Don't fetch updates since new ones might exist
     openmw_sha = get_openmw_sha(src_dir, branch=branch,
                                 sha=sha, tag=tag, pull=pull)
+    os.chdir(install_prefix)
     if str(openmw_sha) not in openmw:
-        os.chdir(install_prefix)
         os.rename("openmw", "openmw-{}".format(openmw_sha))
     if os.path.islink("openmw"):
         os.remove("openmw")
-    os.symlink("openmw-{}".format(openmw_sha), "openmw")
+    os.symlink("openmw-" + openmw_sha, "openmw")
 
     if not no_pkg:
         if not just_openmw:
