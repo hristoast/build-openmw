@@ -19,9 +19,9 @@ LOGFMT = '|-> %(message)s'
 OUT_DIR = os.getenv("HOME")
 SRC_DIR = os.path.join(INSTALL_PREFIX, "src")
 
-DEBIAN_PKGS = "git libopenal-dev libsdl2-dev libqt4-dev libboost-filesystem-dev libboost-thread-dev libboost-program-options-dev libboost-system-dev libavcodec-dev libavformat-dev libavutil-dev libswscale-dev libswresample-dev libbullet-dev libmygui-dev libunshield-dev cmake build-essential libqt4-opengl-dev".split()
-REDHAT_PKGS = "openal-devel SDL2-devel qt4-devel boost-filesystem git boost-thread boost-program-options boost-system ffmpeg-devel ffmpeg-libs bullet-devel gcc-c++ mygui-devel unshield-devel tinyxml-devel cmake".split()
-UBUNTU_PKGS = DEBIAN_PKGS
+DEBIAN_PKGS = "git libopenal-dev libsdl2-dev libqt4-dev libboost-filesystem-dev libboost-thread-dev libboost-program-options-dev libboost-system-dev libavcodec-dev libavformat-dev libavutil-dev libswscale-dev libswresample-dev cmake build-essential libqt4-opengl-dev".split()
+REDHAT_PKGS = "openal-devel SDL2-devel qt4-devel boost-filesystem git boost-thread boost-program-options boost-system ffmpeg-devel ffmpeg-libs gcc-c++ tinyxml-devel cmake".split()
+UBUNTU_PKGS = ["libfreetype6-dev", "libbz2-dev", "liblzma-dev"] + DEBIAN_PKGS
 VOID_PKGS = "boost-devel cmake ffmpeg-devel freetype-devel gcc git libavformat libavutil libmygui-devel libopenal-devel libopenjpeg2-devel libswresample libswscale libtxc_dxtn liblzma-devel libXt-devel make nasm ois-devel python-devel python3-devel qt-devel SDL2-devel zlib-devel".split()
 
 PROG = 'build-openmw'
@@ -87,12 +87,21 @@ def build_library(libname, check_file=None, clone_dest=None, cmake=True,
     def _git_clean_src():
         os.chdir(os.path.join(src_dir, clone_dest))
         emit_log("{} executing source clean!".format(libname))
-        execute_shell(["git", "checkout", "--", "."], verbose=verbose)
-        execute_shell(["git", "clean", "-df"], verbose=verbose)
+        cmd = ["git", "checkout", "--", "."]
+        # emit_log("EXECUTING:")
+        # emit_log(' '.join(cmd))
+        execute_shell(cmd, verbose=verbose)
+        cmd = ["git", "clean", "-df"]
+        # emit_log(' '.join(cmd))
+        execute_shell(cmd, verbose=verbose)
         emit_log("{} resetting source to the desired rev ({rev})".format(
             libname, rev=version))
-        execute_shell(["git", "checkout", version], verbose=verbose)
-        execute_shell(["git", "reset", "--hard", "origin/{}".format(version)],
+        cmd = ["git", "checkout", version]
+        # emit_log(' '.join(cmd))
+        execute_shell(cmd, verbose=verbose)
+        cmd = ["git", "reset", "--hard", version]
+        # emit_log(' '.join(cmd))
+        execute_shell(cmd,
                       verbose=verbose)
 
     if not clone_dest:
@@ -154,7 +163,8 @@ def get_distro() -> tuple:
     return execute_shell(["lsb_release", "-d"])[1]
 
 
-def get_openmw_sha(src_dir: str, version: str, pull=True) -> str:
+def get_openmw_sha(src_dir: str, branch=None,
+                   sha=None, tag=None, pull=True) -> str:
     try:
         os.chdir(os.path.join(src_dir, "openmw"))
     except FileNotFoundError:
@@ -163,13 +173,20 @@ def get_openmw_sha(src_dir: str, version: str, pull=True) -> str:
         emit_log("Fetching latest sources ...")
         execute_shell(["git", "fetch", "--all"])[1][0]
 
-    if '/' not in version:
-        rev = "origin/{}".format(version)
-    else:
-        rev = "{}".format(version)
+    if tag:
+        rev = tag
+    elif sha:
+        rev = sha
+    elif branch:
+        rev = branch
 
-    execute_shell(["git", "checkout", rev])[1][0]
-    execute_shell(["git", "reset", "--hard", rev])[1][0]
+    cmd = ["git", "checkout", rev]
+    # emit_log("EXECUTING:")
+    # emit_log(' '.join(cmd))
+    execute_shell(cmd)[1][0]
+    cmd = ["git", "reset", "--hard", rev]
+    # emit_log(' '.join(cmd))
+    execute_shell(cmd)[1][0]
 
     out = execute_shell(["git", "rev-parse", "--short", "HEAD"])[1][0]
     return out.decode().strip()
@@ -221,6 +238,10 @@ def parse_argv(_argv: list) -> None:
     """Set up args ('_argv', a list) and parse them."""
     parser = argparse.ArgumentParser(description=DESC, prog=PROG)
     parser.add_argument("--version", action="version", version=VERSION, help=argparse.SUPPRESS)
+    version_options = parser.add_mutually_exclusive_group()
+    version_options.add_argument("-s", "--sha", help="The git sha1sum to build.")
+    version_options.add_argument("-t", "--tag", help="The git release tag to build.")
+    version_options.add_argument("-b", "--branch", help="The git branch to build (the tip of.)")
     options = parser.add_argument_group("Options")
     options.add_argument("--force-bullet", action="store_true", help="Force build LibBullet.")
     options.add_argument("--force-mygui", action="store_true", help="Force build MyGUI.")
@@ -229,8 +250,6 @@ def parse_argv(_argv: list) -> None:
     options.add_argument("--force-unshield", action="store_true", help="Force build Unshield.")
     options.add_argument("--force-all", action="store_true", help="Force build all dependencies and OpenMW.")
     options.add_argument("--install-prefix", help="Set the install prefix. Default: {}".format(INSTALL_PREFIX))
-    options.add_argument("-r", "--rev", "--sha", "--tag",
-                         help="The git revision of OpenMW to build.  This can be any valid git rev object.")
     options.add_argument("-j", "--jobs",
                          help="How many cores to use with make.  Default: {}".format(CPUS))
     options.add_argument("-J", "--just-openmw", action="store_true",
@@ -244,12 +263,14 @@ def parse_argv(_argv: list) -> None:
     options.add_argument("-S", "--skip-install-pkgs", action="store_true",
                          help="Don't try to install dependencies.")
     options.add_argument("--src-dir", help="Set the source directory. Default: {}".format(SRC_DIR))
+    options.add_argument("-U", "--update", action="store_true", help="Try to update this script.")
     options.add_argument("-v", "--verbose", action="store_true", help="Enable verbose output.")
 
     return parser.parse_args()
 
 
 def main() -> None:
+    # TODO: Fails to build on ubuntu 17.04, try a newer release perhaps?
     # TODO: option to skip a given dependency?
     logging.basicConfig(format=LOGFMT, level=logging.INFO, stream=sys.stdout)
     start = datetime.datetime.now()
@@ -264,7 +285,6 @@ def main() -> None:
     force_unshield = False
     install_prefix = INSTALL_PREFIX
     parsed = parse_argv(sys.argv[1:])
-    rev = "master"
     just_openmw = False
     no_pkg = False
     out_dir = OUT_DIR
@@ -272,6 +292,9 @@ def main() -> None:
     skip_install_pkgs = False
     src_dir = SRC_DIR
     verbose = False
+    sha = None
+    tag = None
+    branch = "master"
 
     if parsed.force_all:
         force_bullet = True
@@ -297,10 +320,7 @@ def main() -> None:
         emit_log("Forcing build of Unshield!")
     if parsed.install_prefix:
         install_prefix = parsed.install_prefix
-        emit_log("Using the install prefix: {}".format(install_prefix))
-    if parsed.rev:
-        rev = parsed.rev
-        emit_log("Rev specified: {}".format(rev))
+        emit_log("Using the install prefix: " + install_prefix)
     if parsed.jobs:
         cpus = parsed.jobs
         emit_log("'-j{}' will be used with make!".format(cpus))
@@ -315,18 +335,32 @@ def main() -> None:
         emit_log("git fetch will not be ran!")
     if parsed.out:
         out_dir = parsed.out
-        emit_log("Out dir set to: {}".format(out_dir))
+        emit_log("Out dir set to: " + out_dir)
     if parsed.skip_install_pkgs:
         skip_install_pkgs = parsed.skip_install_pkgs
         emit_log("Package installs will be skipped!")
     if parsed.src_dir:
         src_dir = parsed.src_dir
-        emit_log("Source directory set to: {}".format(src_dir))
+        emit_log("Source directory set to: " + src_dir)
     if parsed.verbose:
         verbose = parsed.verbose
         emit_log("Verbose output enabled!")
+    if parsed.branch:
+        branch = rev = parsed.branch
+        if '/' not in branch:
+            branch = rev = "origin/" + parsed.branch
+        emit_log("Branch selected: " + branch)
+    elif parsed.sha:
+        sha = rev = parsed.sha
+        emit_log("SHA selected: " + sha)
+    elif parsed.tag:
+        tag = rev = parsed.tag
+        emit_log("Tag selected: " + tag)
+    else:
+        rev = "origin/" + branch
 
-    openmw_sha = get_openmw_sha(src_dir, rev, pull=pull)
+    openmw_sha = get_openmw_sha(src_dir, branch=branch,
+                                sha=sha, tag=tag, pull=pull)
 
     try:
         out, err = get_distro()
@@ -340,7 +374,8 @@ def main() -> None:
     if not skip_install_pkgs:
         out, err = install_packages(distro)
         if err:
-            error_and_die(err.decode())
+            # Isn't always necessarily exit-worthy
+            emit_log("Stderr received: " + err.decode())
 
     ensure_dir(install_prefix)
     ensure_dir(src_dir)
@@ -375,7 +410,7 @@ def main() -> None:
 
     # UNSHIELD
     build_library("unshield",
-                  check_file=os.path.join(install_prefix, "unshield", "lib64", "libunshield.so"),
+                  check_file=os.path.join(install_prefix, "unshield", "bin", "unshield"),
                   cpus=cpus,
                   force=force_unshield,
                   git_url='https://github.com/twogood/unshield.git',
@@ -420,7 +455,8 @@ def main() -> None:
                   version=rev)
     os.chdir(install_prefix)
     # Don't fetch updates since new ones might exist
-    openmw_sha = get_openmw_sha(src_dir, rev, pull=False)
+    openmw_sha = get_openmw_sha(src_dir, branch=branch,
+                                sha=sha, tag=tag, pull=pull)
     if str(openmw_sha) not in openmw:
         os.chdir(install_prefix)
         os.rename("openmw", "openmw-{}".format(openmw_sha))
