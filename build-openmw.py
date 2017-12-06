@@ -428,6 +428,7 @@ def main() -> None:
     build_env["LDFLAGS"] = "-llzma -lz -lbz2"
     build_library(openmw,
                   check_file=os.path.join(install_prefix, openmw, "bin", "openmw"),
+                  cmake_args=["-DCMAKE_BUILD_TYPE=MinSizeRel"],
                   clone_dest="openmw",
                   cpus=cpus,
                   env=build_env,
