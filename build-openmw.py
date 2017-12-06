@@ -70,6 +70,7 @@ def error_and_die(msg: str) -> SystemExit:
 
 def execute_shell(cli_args: list, env=None, verbose=False) -> tuple:
     """Small convenience wrapper around subprocess.Popen."""
+    emit_log("EXECUTING: " + ' '.join(cli_args), level=logging.DEBUG)
     if verbose:
         p = subprocess.Popen(cli_args, env=env)
     else:
@@ -87,22 +88,12 @@ def build_library(libname, check_file=None, clone_dest=None, cmake=True,
     def _git_clean_src():
         os.chdir(os.path.join(src_dir, clone_dest))
         emit_log("{} executing source clean!".format(libname))
-        cmd = ["git", "checkout", "--", "."]
-        # emit_log("EXECUTING:")
-        # emit_log(' '.join(cmd))
-        execute_shell(cmd, verbose=verbose)
-        cmd = ["git", "clean", "-df"]
-        # emit_log(' '.join(cmd))
-        execute_shell(cmd, verbose=verbose)
+        execute_shell(["git", "checkout", "--", "."], verbose=verbose)
+        execute_shell(["git", "clean", "-df"], verbose=verbose)
         emit_log("{} resetting source to the desired rev ({rev})".format(
             libname, rev=version))
-        cmd = ["git", "checkout", version]
-        # emit_log(' '.join(cmd))
-        execute_shell(cmd, verbose=verbose)
-        cmd = ["git", "reset", "--hard", version]
-        # emit_log(' '.join(cmd))
-        execute_shell(cmd,
-                      verbose=verbose)
+        execute_shell(["git", "checkout", version], verbose=verbose)
+        execute_shell(["git", "reset", "--hard", version], verbose=verbose)
 
     if not clone_dest:
         clone_dest = libname
@@ -163,8 +154,7 @@ def get_distro() -> tuple:
     return execute_shell(["lsb_release", "-d"])[1]
 
 
-def get_openmw_sha(src_dir: str, branch=None,
-                   sha=None, tag=None, pull=True) -> str:
+def get_openmw_sha(src_dir: str, rev=None, pull=True, verbose=False) -> str:
     try:
         os.chdir(os.path.join(src_dir, "openmw"))
     except FileNotFoundError:
@@ -173,20 +163,8 @@ def get_openmw_sha(src_dir: str, branch=None,
         emit_log("Fetching latest sources ...")
         execute_shell(["git", "fetch", "--all"])[1][0]
 
-    if tag:
-        rev = tag
-    elif sha:
-        rev = sha
-    elif branch:
-        rev = branch
-
-    cmd = ["git", "checkout", rev]
-    # emit_log("EXECUTING:")
-    # emit_log(' '.join(cmd))
-    execute_shell(cmd)[1][0]
-    cmd = ["git", "reset", "--hard", rev]
-    # emit_log(' '.join(cmd))
-    execute_shell(cmd)[1][0]
+    execute_shell(["git", "checkout", rev], verbose=verbose)[1][0]
+    execute_shell(["git", "reset", "--hard", rev], verbose=verbose)[1][0]
 
     out = execute_shell(["git", "rev-parse", "--short", "HEAD"])[1][0]
     return out.decode().strip()
@@ -194,38 +172,39 @@ def get_openmw_sha(src_dir: str, branch=None,
 
 def install_packages(distro: str, **kwargs) -> bool:
     quiet = kwargs.pop("quiet", "")
+    verbose = kwargs.pop("verbose", "")
 
     emit_log("Attempting to install dependency packages, please enter your sudo password as needed...",
              quiet=quiet)
     if 'void' in distro.lower():
         emit_log("Distro detected as 'Void Linux'!")
         cmd = ["sudo", "xbps-install", "--yes"] + VOID_PKGS
-        out, err = execute_shell(cmd)[1]
+        out, err = execute_shell(cmd, verbose=verbose)[1]
         msg = "Package installation completed!"
     elif 'debian' in distro.lower():
         emit_log("Distro detected as 'Debian'!")
         cmd = ["sudo", "apt-get", "install", "-y", "--allow-downgrades",
                "--allow-remove-essential", "--allow-change-held-packages"] + DEBIAN_PKGS
-        out, err = execute_shell(cmd)[1]
+        out, err = execute_shell(cmd, verbose=verbose)[1]
         msg = "Package installation completed!"
     elif 'devuan' in distro.lower():
         emit_log("Distro detected as 'Devuan'!")
         # Debian packages should just work in this case.
         cmd = ["sudo", "apt-get", "install", "-y", "--force-yes"] + DEBIAN_PKGS
-        out, err = execute_shell(cmd)[1]
+        out, err = execute_shell(cmd, verbose=verbose)[1]
         msg = "Package installation completed!"
     elif 'ubuntu' in distro.lower():
         emit_log("Distro detected as 'Ubuntu'!")
         cmd = ["sudo", "apt-get", "install", "-y", "--allow-downgrades",
                "--allow-remove-essential", "--allow-change-held-packages"] + UBUNTU_PKGS
-        out, err = execute_shell(cmd)[1]
+        out, err = execute_shell(cmd, verbose=verbose)[1]
         msg = "Package installation completed!"
     elif 'fedora' in distro.lower():
         emit_log("Distro detected as 'Fedora'!")
         cmd = ["sudo", "dnf", "groupinstall", "-y", "development-tools"]
-        out, err = execute_shell(cmd)[1]
+        out, err = execute_shell(cmd, verbose=verbose)[1]
         cmd = ["sudo", "dnf", "install", "-y"] + REDHAT_PKGS
-        out, err = execute_shell(cmd)[1]
+        out, err = execute_shell(cmd, verbose=verbose)[1]
         msg = "Package installation completed!"
     else:
         error_and_die("Your OS is not yet supported!  If you think you know what you are doing, you can use '-S' to continue anyways.")
@@ -234,8 +213,8 @@ def install_packages(distro: str, **kwargs) -> bool:
     return out, err
 
 
-def parse_argv(_argv: list) -> None:
-    """Set up args ('_argv', a list) and parse them."""
+def parse_argv() -> None:
+    """Set up args and parse them."""
     parser = argparse.ArgumentParser(description=DESC, prog=PROG)
     parser.add_argument("--version", action="version", version=VERSION, help=argparse.SUPPRESS)
     version_options = parser.add_mutually_exclusive_group()
@@ -274,8 +253,10 @@ def main() -> None:
     # TODO: option to skip a given dependency?
     logging.basicConfig(format=LOGFMT, level=logging.INFO, stream=sys.stdout)
     start = datetime.datetime.now()
-    emit_log("BEGIN {0} run at {1}".format(
-        PROG, datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
+    # No log output when showing the help/usage text.
+    if "-h" not in sys.argv and "--help" not in sys.argv:
+        emit_log("BEGIN {0} run at {1}".format(
+            PROG, datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
     cpus = CPUS
     distro = None
     force_bullet = False
@@ -284,7 +265,7 @@ def main() -> None:
     force_osg = False
     force_unshield = False
     install_prefix = INSTALL_PREFIX
-    parsed = parse_argv(sys.argv[1:])
+    parsed = parse_argv()
     just_openmw = False
     no_pkg = False
     out_dir = OUT_DIR
@@ -344,6 +325,7 @@ def main() -> None:
         emit_log("Source directory set to: " + src_dir)
     if parsed.verbose:
         verbose = parsed.verbose
+        logging.getLogger().setLevel(logging.DEBUG)
         emit_log("Verbose output enabled!")
     if parsed.branch:
         branch = rev = parsed.branch
@@ -359,20 +341,22 @@ def main() -> None:
     else:
         rev = "origin/" + branch
 
-    openmw_sha = get_openmw_sha(src_dir, branch=branch,
-                                sha=sha, tag=tag, pull=pull)
+    openmw_sha = get_openmw_sha(src_dir, rev=rev, pull=pull, verbose=verbose)
 
     try:
         out, err = get_distro()
+        if err:
+            error_and_die(err.decode())
     except FileNotFoundError:
-        error_and_die("Unable to determine your distro to install dependencies!  Try again and use '-S' if you know what you are doing.")
-    if err:
-        error_and_die(err.decode())
+        if skip_install_pkgs:
+            pass
+        else:
+            error_and_die("Unable to determine your distro to install dependencies!  Try again and use '-S' if you know what you are doing.")
     else:
         distro = out.decode().split(":")[1].strip()
 
     if not skip_install_pkgs:
-        out, err = install_packages(distro)
+        out, err = install_packages(distro, verbose=verbose)
         if err:
             # Isn't always necessarily exit-worthy
             emit_log("Stderr received: " + err.decode())
@@ -455,8 +439,7 @@ def main() -> None:
                   version=rev)
     os.chdir(install_prefix)
     # Don't fetch updates since new ones might exist
-    openmw_sha = get_openmw_sha(src_dir, branch=branch,
-                                sha=sha, tag=tag, pull=pull)
+    openmw_sha = get_openmw_sha(src_dir, rev=rev, pull=pull, verbose=verbose)
     os.chdir(install_prefix)
     if str(openmw_sha) not in openmw:
         os.rename("openmw", "openmw-{}".format(openmw_sha))
