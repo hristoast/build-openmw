@@ -20,9 +20,25 @@ You'll be left with an empty directory.  If you've used a different install pref
 
 Run `build-openmw.py` with no arguments to get everything you need - it will potentially take several hours to complete unless you have a powerful CPU and a lot of RAM.  Subsequent runs will only rebuild OpenMW, and only if there have been changes in the upstream repository (unless a `--force-*` argument is given.)
 
-Pass the `--help` argument to see advanced usage options.
+Pass the `--help` argument to see advanced usage options.  For a local install, use something like this:
+
+    build-openmw -n -v
+
+If this isn't your first run, you can skip installing packages via your package manager like this:
+
+    build-openmw -n -S -v
+
+Both of the above build everything needed to run OpenMW without creating any package.
 
 ## Advanced
+
+### Build a release
+
+To build the `0.43` release of OpenMW:
+
+    build-openmw -t openmw-0.43.0
+
+Any valid git tag can be built this way.
 
 ### Build a branch of a fork
 
@@ -32,7 +48,7 @@ This script allows one to easily build any git rev.  If you want to build a bran
 
 Then, pass your branch as an argument:
 
-    build-openmw -n -S -r anyoldname3/osgshadow-test-vdsm
+    build-openmw -n -S -b anyoldname3/osgshadow-test-vdsm
 
 This will build and not package the tip of the `osgshadow-test-vdsm` branch from Anyoldname3's fork.
 
