@@ -25,7 +25,7 @@ UBUNTU_PKGS = ["libfreetype6-dev", "libbz2-dev", "liblzma-dev"] + DEBIAN_PKGS
 VOID_PKGS = "boost-devel cmake ffmpeg-devel freetype-devel gcc git libavformat libavutil libmygui-devel libopenal-devel libopenjpeg2-devel libswresample libswscale libtxc_dxtn liblzma-devel libXt-devel make nasm ois-devel python-devel python3-devel qt-devel SDL2-devel zlib-devel".split()
 
 PROG = 'build-openmw'
-VERSION = "1.2"
+VERSION = "1.3"
 
 
 def emit_log(msg: str, level=logging.INFO, quiet=False, *args, **kwargs) -> None:
@@ -254,7 +254,7 @@ def main() -> None:
     logging.basicConfig(format=LOGFMT, level=logging.INFO, stream=sys.stdout)
     start = datetime.datetime.now()
     # No log output when showing the help/usage text.
-    if "-h" not in sys.argv and "--help" not in sys.argv:
+    if "-h" not in sys.argv and "--help" not in sys.argv and "--version" not in sys.argv:
         emit_log("BEGIN {0} run at {1}".format(
             PROG, datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
     cpus = CPUS
@@ -440,6 +440,7 @@ def main() -> None:
                   version=rev)
     os.chdir(install_prefix)
     # Don't fetch updates since new ones might exist
+    # TODO: no git fetching on this one
     openmw_sha = get_openmw_sha(src_dir, rev=rev, pull=pull, verbose=verbose)
     os.chdir(install_prefix)
     if str(openmw_sha) not in openmw:
