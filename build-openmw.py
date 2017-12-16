@@ -81,8 +81,8 @@ def execute_shell(cli_args: list, env=None, verbose=False) -> tuple:
 
 
 def build_library(libname, check_file=None, clone_dest=None, cmake=True,
-                  cmake_args=None, cpus=None, env=None,
-                  force=False, install_prefix=INSTALL_PREFIX, git_url=None,
+                  cmake_args=None, cpus=None, env=None, force=False,
+                  install_prefix=INSTALL_PREFIX, git_url=None, patch=None,
                   quiet=False, src_dir=SRC_DIR, verbose=False, version='master'):
 
     def _git_clean_src():
@@ -113,6 +113,12 @@ def build_library(libname, check_file=None, clone_dest=None, cmake=True,
             shutil.rmtree(os.path.join(install_prefix, libname))
 
         _git_clean_src()
+
+        if patch:
+            emit_log("Applying patch: " + patch)
+            code = os.system("patch -p1 < " + patch)
+            if code > 0:
+                error_and_die("There was a problem applying the patch!")
 
         os.chdir(os.path.join(src_dir, clone_dest))
         emit_log("{} building with cmake!".format(libname))
@@ -239,6 +245,7 @@ def parse_argv() -> None:
                          help="Don't create a package.")
     options.add_argument("-o", "--out", metavar="DIR",
                          help="Where to write the package to.  Default: {}".format(OUT_DIR))
+    options.add_argument("-p", "--patch", help="Path to a patch file that should be applied.")
     options.add_argument("-S", "--skip-install-pkgs", action="store_true",
                          help="Don't try to install dependencies.")
     options.add_argument("--src-dir", help="Set the source directory. Default: {}".format(SRC_DIR))
@@ -269,6 +276,7 @@ def main() -> None:
     just_openmw = False
     no_pkg = False
     out_dir = OUT_DIR
+    patch = None
     pull = True
     skip_install_pkgs = False
     src_dir = SRC_DIR
@@ -317,6 +325,12 @@ def main() -> None:
     if parsed.out:
         out_dir = parsed.out
         emit_log("Out dir set to: " + out_dir)
+    if parsed.patch:
+        patch = os.path.abspath(parsed.patch)
+        if os.path.isfile(patch):
+            emit_log("Will attempt to use this patch: " + patch)
+        else:
+            error_and_die("The supplied patch isn't a file!")
     if parsed.skip_install_pkgs:
         skip_install_pkgs = parsed.skip_install_pkgs
         emit_log("Package installs will be skipped!")
@@ -435,6 +449,7 @@ def main() -> None:
                   force=force_openmw,
                   git_url='https://github.com/OpenMW/openmw.git',
                   install_prefix=install_prefix,
+                  patch=patch,
                   src_dir=src_dir,
                   verbose=verbose,
                   version=rev)
