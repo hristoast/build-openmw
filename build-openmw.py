@@ -7,10 +7,16 @@ import shutil
 import subprocess
 import sys
 import tarfile
+import urllib.request
+import zipfile
 
 BULLET_VERSION = "2.86.1"
 MYGUI_VERSION = "3.2.2"
 UNSHIELD_VERSION = "1.4.2"
+
+CALLFF_VERSION = "origin/master"
+RAKNET_VERSION = "1d6bb9e88db04aaeaa8752835c17574509d05a31"
+TERRA_VERSION = "2fa8d0a"
 
 CPUS = os.cpu_count() + 1
 INSTALL_PREFIX = os.path.join("/", "opt", "morrowind")
@@ -25,7 +31,7 @@ UBUNTU_PKGS = ["libfreetype6-dev", "libbz2-dev", "liblzma-dev"] + DEBIAN_PKGS
 VOID_PKGS = "boost-devel cmake ffmpeg-devel freetype-devel gcc git libavformat libavutil libmygui-devel libopenal-devel libopenjpeg2-devel libswresample libswscale libtxc_dxtn liblzma-devel libXt-devel make nasm ois-devel python-devel python3-devel qt-devel SDL2-devel zlib-devel".split()
 
 PROG = 'build-openmw'
-VERSION = "1.3"
+VERSION = "1.4"
 
 
 def emit_log(msg: str, level=logging.INFO, quiet=False, *args, **kwargs) -> None:
@@ -81,9 +87,10 @@ def execute_shell(cli_args: list, env=None, verbose=False) -> tuple:
 
 
 def build_library(libname, check_file=None, clone_dest=None, cmake=True,
-                  cmake_args=None, cpus=None, env=None, force=False,
-                  install_prefix=INSTALL_PREFIX, git_url=None, patch=None,
-                  quiet=False, src_dir=SRC_DIR, verbose=False, version='master'):
+                  cmake_args=None, cmake_target="..", cpus=None, env=None,
+                  force=False, install_prefix=INSTALL_PREFIX, git_url=None,
+                  make_install=True, patch=None, quiet=False, src_dir=SRC_DIR,
+                  verbose=False, version='master'):
 
     def _git_clean_src():
         os.chdir(os.path.join(src_dir, clone_dest))
@@ -121,23 +128,25 @@ def build_library(libname, check_file=None, clone_dest=None, cmake=True,
                 error_and_die("There was a problem applying the patch!")
 
         os.chdir(os.path.join(src_dir, clone_dest))
-        emit_log("{} building with cmake!".format(libname))
-        build_dir = os.path.join(src_dir, clone_dest, "build")
-        if os.path.isdir(build_dir):
-            shutil.rmtree(build_dir)
-        os.mkdir(build_dir)
-        os.chdir(build_dir)
 
-        emit_log("{} running cmake ...".format(libname))
-        build_cmd = ["cmake", "-DCMAKE_INSTALL_PREFIX={}/{}"
-                     .format(install_prefix, libname)]
-        if cmake_args:
-            build_cmd += cmake_args
-        build_cmd += ["..", ]
-        exitcode, output = execute_shell(build_cmd, env=env, verbose=verbose)
-        if exitcode != 0:
-            emit_log(output[1])
-            error_and_die("cmake exited nonzero!")
+        if cmake:
+            emit_log("{} building with cmake!".format(libname))
+            build_dir = os.path.join(src_dir, clone_dest, "build")
+            if os.path.isdir(build_dir):
+                shutil.rmtree(build_dir)
+            os.mkdir(build_dir)
+            os.chdir(build_dir)
+
+            emit_log("{} running cmake ...".format(libname))
+            build_cmd = ["cmake", "-DCMAKE_INSTALL_PREFIX={}/{}"
+                         .format(install_prefix, libname)]
+            if cmake_args:
+                build_cmd += cmake_args
+            build_cmd += [cmake_target, ]
+            exitcode, output = execute_shell(build_cmd, env=env, verbose=verbose)
+            if exitcode != 0:
+                emit_log(output[1])
+                error_and_die("cmake exited nonzero!")
 
         emit_log("{} running make (this will take a while) ...".format(libname))
         exitcode, output = execute_shell(["make", "-j{}".format(cpus)],
@@ -146,13 +155,14 @@ def build_library(libname, check_file=None, clone_dest=None, cmake=True,
             emit_log(output[1])
             error_and_die("make exited nonzero!")
 
-        emit_log("{} running make install ...".format(libname))
-        out, err = execute_shell(["make", "install"],
-                                 env=env, verbose=verbose)[1]
-        if err:
-            error_and_die(err.decode("utf-8"))
+        if make_install:
+            emit_log("{} running make install ...".format(libname))
+            out, err = execute_shell(["make", "install"],
+                                     env=env, verbose=verbose)[1]
+            if err:
+                error_and_die(err.decode("utf-8"))
 
-        emit_log("{} installed successfully!".format(libname))
+            emit_log("{} installed successfully!".format(libname))
 
 
 def get_distro() -> tuple:
@@ -160,9 +170,9 @@ def get_distro() -> tuple:
     return execute_shell(["lsb_release", "-d"])[1]
 
 
-def get_openmw_sha(src_dir: str, rev=None, pull=True, verbose=False) -> str:
+def get_repo_sha(src_dir: str, repo="openmw", rev=None, pull=True, verbose=False) -> str:
     try:
-        os.chdir(os.path.join(src_dir, "openmw"))
+        os.chdir(os.path.join(src_dir, repo))
     except FileNotFoundError:
         return False
     if pull:
@@ -229,11 +239,16 @@ def parse_argv() -> None:
     version_options.add_argument("-b", "--branch", help="The git branch to build (the tip of.)")
     options = parser.add_argument_group("Options")
     options.add_argument("--force-bullet", action="store_true", help="Force build LibBullet.")
+    options.add_argument("--force-callff", action="store_true", help="Force build CallFF.")
     options.add_argument("--force-mygui", action="store_true", help="Force build MyGUI.")
     options.add_argument("--force-openmw", action="store_true", help="Force build OpenMW.")
     options.add_argument("--force-osg", action="store_true", help="Force build OSG.")
+    options.add_argument("--force-raknet", action="store_true", help="Force build Raknet.")
+    options.add_argument("--force-terra", action="store_true", help="Force extract Terra.")
+    options.add_argument("--force-tes3mp", action="store_true", help="Force build TES3MP.")
     options.add_argument("--force-unshield", action="store_true", help="Force build Unshield.")
     options.add_argument("--force-all", action="store_true", help="Force build all dependencies and OpenMW.")
+    options.add_argument("--force-all-tes3mp", action="store_true", help="Force build all dependencies and TES3MP.")
     options.add_argument("--install-prefix", help="Set the install prefix. Default: {}".format(INSTALL_PREFIX))
     options.add_argument("-j", "--jobs",
                          help="How many cores to use with make.  Default: {}".format(CPUS))
@@ -250,6 +265,8 @@ def parse_argv() -> None:
                          help="Don't try to install dependencies.")
     options.add_argument("--src-dir", help="Set the source directory. Default: {}".format(SRC_DIR))
     options.add_argument("-U", "--update", action="store_true", help="Try to update this script.")
+    options.add_argument("-MP", "--tes3mp", action="store_true", help="Build TES3MP.")
+    options.add_argument("--tes3mp-server-only", action="store_true", help="Build TES3MP (server only.)")
     options.add_argument("-v", "--verbose", action="store_true", help="Enable verbose output.")
 
     return parser.parse_args()
@@ -267,9 +284,13 @@ def main() -> None:
     cpus = CPUS
     distro = None
     force_bullet = False
+    force_callff = False
     force_mygui = False
     force_openmw = False
     force_osg = False
+    force_raknet = False
+    force_terra = False
+    force_tes3mp = False
     force_unshield = False
     install_prefix = INSTALL_PREFIX
     parsed = parse_argv()
@@ -280,6 +301,8 @@ def main() -> None:
     pull = True
     skip_install_pkgs = False
     src_dir = SRC_DIR
+    tes3mp = False
+    tes3mp_serveronly = False
     verbose = False
     sha = None
     tag = None
@@ -292,9 +315,22 @@ def main() -> None:
         force_osg = True
         force_unshield = True
         emit_log("Force building all dependencies!")
+    if parsed.force_all_tes3mp:
+        force_bullet = True
+        force_callff = True
+        force_mygui = True
+        force_osg = True
+        force_raknet = True
+        force_terra = True
+        force_tes3mp = True
+        force_unshield = True
+        emit_log("Force building all TES3MP dependencies!")
     if parsed.force_bullet:
         force_bullet = True
         emit_log("Forcing build of LibBullet!")
+    if parsed.force_callff:
+        force_callff = True
+        emit_log("Forcing build of CallFF!")
     if parsed.force_mygui:
         force_mygui = True
         emit_log("Forcing build of MyGUI!")
@@ -304,6 +340,15 @@ def main() -> None:
     if parsed.force_osg:
         force_osg = True
         emit_log("Forcing build of OSG!")
+    if parsed.force_raknet:
+        force_raknet = True
+        emit_log("Forcing build of Raknet!")
+    if parsed.force_terra:
+        force_terra = True
+        emit_log("Forcing extract of Terra!")
+    if parsed.force_tes3mp:
+        force_tes3mp = True
+        emit_log("Forcing build of TES3MP!")
     if parsed.force_unshield:
         force_unshield = True
         emit_log("Forcing build of Unshield!")
@@ -337,6 +382,20 @@ def main() -> None:
     if parsed.src_dir:
         src_dir = parsed.src_dir
         emit_log("Source directory set to: " + src_dir)
+    if parsed.tes3mp:
+        DEBIAN_PKGS.append("libluajit-5.1-dev")
+        # TODO: redhat package
+        UBUNTU_PKGS.append("libluajit-5.1-dev")
+        VOID_PKGS.append("LuaJIT-devel")
+        tes3mp = True
+        emit_log("TES3MP build selected!")
+    if parsed.tes3mp_server_only:
+        DEBIAN_PKGS.append("libluajit-5.1-dev")
+        # TODO: redhat package
+        UBUNTU_PKGS.append("libluajit-5.1-dev")
+        VOID_PKGS.append("LuaJIT-devel")
+        tes3mp_serveronly = True
+        emit_log("TES3MP server-only build selected!")
     if parsed.verbose:
         verbose = parsed.verbose
         logging.getLogger().setLevel(logging.DEBUG)
@@ -354,8 +413,6 @@ def main() -> None:
         emit_log("Tag selected: " + tag)
     else:
         rev = "origin/" + branch
-
-    openmw_sha = get_openmw_sha(src_dir, rev=rev, pull=pull, verbose=verbose)
 
     try:
         out, err = get_distro()
@@ -430,61 +487,179 @@ def main() -> None:
                   verbose=verbose,
                   version=MYGUI_VERSION)
 
-    # OPENMW
-    if openmw_sha:
-        openmw = "openmw-{}".format(openmw_sha)
-    else:
-        # There's no sha yet since the source hasn't been cloned.
-        openmw = "openmw"
-    build_env = os.environ.copy()
-    build_env["CMAKE_PREFIX_PATH"] = "{0}/osg-openmw:{0}/unshield:{0}/mygui:{0}/bullet".format(
-        install_prefix)
-    build_env["LDFLAGS"] = "-llzma -lz -lbz2"
-    build_library(openmw,
-                  check_file=os.path.join(install_prefix, openmw, "bin", "openmw"),
-                  cmake_args=["-DCMAKE_BUILD_TYPE=MinSizeRel"],
-                  clone_dest="openmw",
-                  cpus=cpus,
-                  env=build_env,
-                  force=force_openmw,
-                  git_url='https://github.com/OpenMW/openmw.git',
-                  install_prefix=install_prefix,
-                  patch=patch,
-                  src_dir=src_dir,
-                  verbose=verbose,
-                  version=rev)
-    os.chdir(install_prefix)
-    # Don't fetch updates since new ones might exist
-    # TODO: no git fetching on this one
-    openmw_sha = get_openmw_sha(src_dir, rev=rev, pull=pull, verbose=verbose)
-    os.chdir(install_prefix)
-    if str(openmw_sha) not in openmw:
-        os.rename("openmw", "openmw-{}".format(openmw_sha))
-    if os.path.islink("openmw"):
-        os.remove("openmw")
-    os.symlink("openmw-" + openmw_sha, "openmw")
+    if tes3mp or tes3mp_serveronly:
+        build_library("callff",
+                      check_file=os.path.join(install_prefix, "src", "callff", "build", "src", "libcallff.a"),
+                      cpus=cpus,
+                      force=force_callff,
+                      git_url='https://github.com/Koncord/CallFF.git',
+                      install_prefix=install_prefix,
+                      make_install=False,  # For some reason, there's no install target
+                      src_dir=src_dir,
+                      verbose=verbose,
+                      version=CALLFF_VERSION)
 
-    if not no_pkg:
-        if not just_openmw:
-            os.chdir(os.path.join(install_prefix, ".."))
-            # TODO: Possible option to not exclude src...
-            exclude = "morrowind/src"
-            dest = "morrowind.tar.bzip2"
-            src = "morrowind"
+        build_library("raknet",
+                      check_file=os.path.join(install_prefix, "src", "raknet", "build", "lib", "libRakNetLibStatic.a"),
+                      cmake_args=["-DRAKNET_ENABLE_DLL=OFF", "-DRAKNET_ENABLE_SAMPLES=OFF",
+                                  "-DRAKNET_ENABLE_STATIC=ON", "-DRAKNET_GENERATE_INCLUDE_ONLY_DIR=ON"],
+                      cpus=cpus,
+                      force=force_raknet,
+                      git_url='https://github.com/TES3MP/RakNet.git',
+                      install_prefix=install_prefix,
+                      make_install=False,  # For some reason, there's no install target
+                      src_dir=src_dir,
+                      verbose=verbose,
+                      version=RAKNET_VERSION)
+
+        # build_library("terra",
+        #               check_file=os.path.join(install_prefix, "src", "terra", "build", "lib", ""),
+        #               cmake=False,
+        #               cpus=cpus,
+        #               # force=force_terra,  # TODO
+        #               git_url='https://github.com/zdevito/terra.git',
+        #               install_prefix=install_prefix,
+        #               # make_install=False,  # For some reason, there's no install target
+        #               src_dir=src_dir,
+        #               verbose=verbose,
+        #               version=TERRA_VERSION)
+
+        # Terra doesn't build easily, so just download the release zip
+        terra_url = "https://github.com/zdevito/terra/releases/download/release-2016-02-26/terra-Linux-x86_64-{}.zip".format(TERRA_VERSION)
+        terra_dir = os.path.join(INSTALL_PREFIX, "terra")
+        terra_dir_long = terra_dir + "-Linux-x86_64-" + TERRA_VERSION
+        terra_zip = os.path.join(INSTALL_PREFIX, "terra-{}.zip".format(TERRA_VERSION))
+
+        if force_terra:
+            try:
+                shutil.rmtree(terra_dir)
+            except FileNotFoundError:
+                pass
+
+        if not os.path.isfile(terra_zip):
+            emit_log("Terra zip not found, downloading")
+            with urllib.request.urlopen(terra_url) as response, open(terra_zip, 'wb') as out_file:
+                shutil.copyfileobj(response, out_file)
+
+        if not os.path.isdir(terra_dir):
+            if not os.path.isdir(terra_dir_long):
+                emit_log("Terra directory not found, extracting zip")
+                unzip = zipfile.ZipFile(terra_zip, 'r')
+                unzip.extractall(INSTALL_PREFIX)
+                unzip.close()
+            emit_log("Renaming extracted Terra directory")
+            os.rename(terra_dir_long, terra_dir)
         else:
-            os.chdir(install_prefix)
-            exclude = "src"
-            dest = "openmw-{}.tar.bzip2".format(openmw_sha)
-            src = "openmw-{}".format(openmw_sha)
+            emit_log("Terra found!")
 
-        backup_file = os.path.join(out_dir, dest)
-        emit_log("Creating {} ...".format(backup_file))
-        if os.path.exists(backup_file) and os.path.isfile(backup_file):
-            os.remove(backup_file)
-        tar = tarfile.open(backup_file, "w:bz2")
-        tar.add(src, filter=lambda x: None if x.name == exclude else x)
-        tar.close()
-        emit_log("{} created!".format(backup_file))
+        tes3mp_sha = get_repo_sha(src_dir, repo="tes3mp", rev=rev, pull=pull, verbose=verbose)
+
+        if tes3mp_sha:
+            tes3mp = "tes3mp-" + tes3mp_sha
+        else:
+            tes3mp = "tes3mp"
+        build_env = os.environ.copy()
+        build_env["CMAKE_PREFIX_PATH"] = "{0}/osg-openmw:{0}/unshield:{0}/mygui:{0}/bullet:{0}/src/callff/build/src:{0}/src/raknet/build/lib:{0}/terra".format(
+            install_prefix)
+        build_env["LDFLAGS"] = "-llzma -lz -lbz2"
+
+        tes3mp_binary = "tes3mp"
+        tes3mp_cmake_args = ["-Wno-dev", "-DCMAKE_BUILD_TYPE=Release", "-DBUILD_OPENCS=OFF",
+                             "-DCMAKE_CXX_STANDARD=14", '-DCMAKE_CXX_FLAGS=\"-std=c++14\"',
+                             "-DDESIRED_QT_VERSION=5", '-DCallFF_INCLUDES={}/callff/include'.format(SRC_DIR),
+                             "-DCallFF_LIBRARY={}/callff/build/src/libcallff.a".format(SRC_DIR),
+                             "-DRakNet_INCLUDES={}/raknet/include".format(SRC_DIR),
+                             "-DRakNet_LIBRARY_DEBUG={}/raknet/build/lib/libRakNetLibStatic.a".format(SRC_DIR),
+                             "-DRakNet_LIBRARY_RELEASE={}/raknet/build/lib/libRakNetLibStatic.a".format(SRC_DIR),
+                             "-DTerra_INCLUDES={}/terra/include".format(install_prefix),
+                             "-DTerra_LIBRARY_RELEASE={}/terra/lib/libterra.a".format(install_prefix)]
+        if tes3mp_serveronly:
+            tes3mp_binary = "tes3mp-server"
+            tes3mp_cmake_args.append(["-DBUILD_OPENMW_MP=ON", "-DBUILD_BROWSER=OFF",
+                                      "-DBUILD_BSATOOL=OFF", "-DBUILD_ESMTOOL=OFF",
+                                      "-DBUILD_ESSIMPORTER=OFF", "-DBUILD_LAUNCHER=OFF",
+                                      "-DBUILD_MWINIIMPORTER=OFF", "-DBUILD_MYGUI_PLUGIN=OFF",
+                                      "-DBUILD_OPENMW=OFF", "-DBUILD_WIZARD=OFF"])
+
+        build_library(tes3mp,
+                      check_file=os.path.join(install_prefix, tes3mp, "bin", tes3mp_binary),
+                      cmake_args=tes3mp_cmake_args,
+                      clone_dest="tes3mp",
+                      cpus=cpus,
+                      env=build_env,
+                      force=force_tes3mp,
+                      git_url='https://github.com/TES3MP/openmw-tes3mp.git',
+                      install_prefix=install_prefix,
+                      patch=patch,
+                      src_dir=src_dir,
+                      verbose=verbose,
+                      version=rev)
+
+        tes3mp_sha = get_repo_sha(src_dir, rev=rev, pull=pull, verbose=verbose)
+        os.chdir(install_prefix)
+        if str(tes3mp_sha) not in tes3mp:
+            os.rename("tes3mp", "tes3mp-{}".format(tes3mp_sha))
+        if os.path.islink("tes3mp"):
+            os.remove("tes3mp")
+        os.symlink("tes3mp-" + tes3mp_sha, "tes3mp")
+
+    else:
+        # OPENMW
+        openmw_sha = get_repo_sha(src_dir, rev=rev, pull=pull, verbose=verbose)
+        if openmw_sha:
+            openmw = "openmw-{}".format(openmw_sha)
+        else:
+            # There's no sha yet since the source hasn't been cloned.
+            openmw = "openmw"
+        build_env = os.environ.copy()
+        build_env["CMAKE_PREFIX_PATH"] = "{0}/osg-openmw:{0}/unshield:{0}/mygui:{0}/bullet".format(
+            install_prefix)
+        build_env["LDFLAGS"] = "-llzma -lz -lbz2"
+        build_library(openmw,
+                      check_file=os.path.join(install_prefix, openmw, "bin", "openmw"),
+                      cmake_args=["-DCMAKE_BUILD_TYPE=MinSizeRel"],
+                      clone_dest="openmw",
+                      cpus=cpus,
+                      env=build_env,
+                      force=force_openmw,
+                      git_url='https://github.com/OpenMW/openmw.git',
+                      install_prefix=install_prefix,
+                      patch=patch,
+                      src_dir=src_dir,
+                      verbose=verbose,
+                      version=rev)
+        os.chdir(install_prefix)
+        # Don't fetch updates since new ones might exist
+        # TODO: no git fetching on this one
+        openmw_sha = get_repo_sha(src_dir, rev=rev, pull=pull, verbose=verbose)
+        os.chdir(install_prefix)
+        if str(openmw_sha) not in openmw:
+            os.rename("openmw", "openmw-{}".format(openmw_sha))
+        if os.path.islink("openmw"):
+            os.remove("openmw")
+        os.symlink("openmw-" + openmw_sha, "openmw")
+
+        if not no_pkg:
+            if not just_openmw:
+                os.chdir(os.path.join(install_prefix, ".."))
+                # TODO: Possible option to not exclude src...
+                exclude = "morrowind/src"
+                dest = "morrowind.tar.bzip2"
+                src = "morrowind"
+            else:
+                os.chdir(install_prefix)
+                exclude = "src"
+                dest = "openmw-{}.tar.bzip2".format(openmw_sha)
+                src = "openmw-{}".format(openmw_sha)
+
+            backup_file = os.path.join(out_dir, dest)
+            emit_log("Creating {} ...".format(backup_file))
+            if os.path.exists(backup_file) and os.path.isfile(backup_file):
+                os.remove(backup_file)
+            tar = tarfile.open(backup_file, "w:bz2")
+            tar.add(src, filter=lambda x: None if x.name == exclude else x)
+            tar.close()
+            emit_log("{} created!".format(backup_file))
 
     emit_log("END {0} run at {1}".format(
         PROG, datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
