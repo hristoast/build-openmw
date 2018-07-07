@@ -1,6 +1,6 @@
 # build-openmw
 
-This script aims to provide an optimized, portable, and reproducible way to build OpenMW oneself.
+This script aims to provide an optimized, portable, and reproducible way to build [OpenMW](https://github.com/openmw/openmw) oneself.  Also supports [TES3MP](https://github.com/TES3MP/openmw-tes3mp).
 
 ## Installation
 
@@ -31,6 +31,12 @@ If this isn't your first run, you can skip installing packages via your package 
 Both of the above build everything needed to run OpenMW without creating any package.
 
 ## Advanced
+
+### Build TES3MP
+
+To build the `0.6.3` branch of TES3MP:
+
+    build-openmw -MP -b 0.6.3
 
 ### Build a release
 
