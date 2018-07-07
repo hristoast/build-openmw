@@ -545,7 +545,7 @@ def main() -> None:
                       verbose=verbose,
                       version=rev)
 
-        tes3mp_sha = get_repo_sha(src_dir, rev=rev, pull=pull, verbose=verbose)
+        tes3mp_sha = get_repo_sha(src_dir, repo="tes3mp", rev=rev, pull=pull, verbose=verbose)
         os.chdir(install_prefix)
         if str(tes3mp_sha) not in tes3mp:
             os.rename("tes3mp", "tes3mp-{}".format(tes3mp_sha))
