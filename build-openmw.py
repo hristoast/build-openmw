@@ -7,8 +7,6 @@ import shutil
 import subprocess
 import sys
 import tarfile
-import urllib.request
-import zipfile
 
 BULLET_VERSION = "2.86.1"
 MYGUI_VERSION = "3.2.2"
@@ -16,7 +14,6 @@ UNSHIELD_VERSION = "1.4.2"
 
 CALLFF_VERSION = "origin/master"
 RAKNET_VERSION = "1d6bb9e88db04aaeaa8752835c17574509d05a31"
-TERRA_VERSION = "2fa8d0a"
 
 CPUS = os.cpu_count() + 1
 INSTALL_PREFIX = os.path.join("/", "opt", "morrowind")
@@ -244,7 +241,6 @@ def parse_argv() -> None:
     options.add_argument("--force-openmw", action="store_true", help="Force build OpenMW.")
     options.add_argument("--force-osg", action="store_true", help="Force build OSG.")
     options.add_argument("--force-raknet", action="store_true", help="Force build Raknet.")
-    options.add_argument("--force-terra", action="store_true", help="Force extract Terra.")
     options.add_argument("--force-tes3mp", action="store_true", help="Force build TES3MP.")
     options.add_argument("--force-unshield", action="store_true", help="Force build Unshield.")
     options.add_argument("--force-all", action="store_true", help="Force build all dependencies and OpenMW.")
@@ -289,7 +285,6 @@ def main() -> None:
     force_openmw = False
     force_osg = False
     force_raknet = False
-    force_terra = False
     force_tes3mp = False
     force_unshield = False
     install_prefix = INSTALL_PREFIX
@@ -321,7 +316,6 @@ def main() -> None:
         force_mygui = True
         force_osg = True
         force_raknet = True
-        force_terra = True
         force_tes3mp = True
         force_unshield = True
         emit_log("Force building all TES3MP dependencies!")
@@ -343,9 +337,6 @@ def main() -> None:
     if parsed.force_raknet:
         force_raknet = True
         emit_log("Forcing build of Raknet!")
-    if parsed.force_terra:
-        force_terra = True
-        emit_log("Forcing extract of Terra!")
     if parsed.force_tes3mp:
         force_tes3mp = True
         emit_log("Forcing build of TES3MP!")
@@ -512,46 +503,6 @@ def main() -> None:
                       verbose=verbose,
                       version=RAKNET_VERSION)
 
-        # build_library("terra",
-        #               check_file=os.path.join(install_prefix, "src", "terra", "build", "lib", ""),
-        #               cmake=False,
-        #               cpus=cpus,
-        #               # force=force_terra,  # TODO
-        #               git_url='https://github.com/zdevito/terra.git',
-        #               install_prefix=install_prefix,
-        #               # make_install=False,  # For some reason, there's no install target
-        #               src_dir=src_dir,
-        #               verbose=verbose,
-        #               version=TERRA_VERSION)
-
-        # Terra doesn't build easily, so just download the release zip
-        terra_url = "https://github.com/zdevito/terra/releases/download/release-2016-02-26/terra-Linux-x86_64-{}.zip".format(TERRA_VERSION)
-        terra_dir = os.path.join(INSTALL_PREFIX, "terra")
-        terra_dir_long = terra_dir + "-Linux-x86_64-" + TERRA_VERSION
-        terra_zip = os.path.join(INSTALL_PREFIX, "terra-{}.zip".format(TERRA_VERSION))
-
-        if force_terra:
-            try:
-                shutil.rmtree(terra_dir)
-            except FileNotFoundError:
-                pass
-
-        if not os.path.isfile(terra_zip):
-            emit_log("Terra zip not found, downloading")
-            with urllib.request.urlopen(terra_url) as response, open(terra_zip, 'wb') as out_file:
-                shutil.copyfileobj(response, out_file)
-
-        if not os.path.isdir(terra_dir):
-            if not os.path.isdir(terra_dir_long):
-                emit_log("Terra directory not found, extracting zip")
-                unzip = zipfile.ZipFile(terra_zip, 'r')
-                unzip.extractall(INSTALL_PREFIX)
-                unzip.close()
-            emit_log("Renaming extracted Terra directory")
-            os.rename(terra_dir_long, terra_dir)
-        else:
-            emit_log("Terra found!")
-
         tes3mp_sha = get_repo_sha(src_dir, repo="tes3mp", rev=rev, pull=pull, verbose=verbose)
 
         if tes3mp_sha:
@@ -559,7 +510,7 @@ def main() -> None:
         else:
             tes3mp = "tes3mp"
         build_env = os.environ.copy()
-        build_env["CMAKE_PREFIX_PATH"] = "{0}/osg-openmw:{0}/unshield:{0}/mygui:{0}/bullet:{0}/src/callff/build/src:{0}/src/raknet/build/lib:{0}/terra".format(
+        build_env["CMAKE_PREFIX_PATH"] = "{0}/osg-openmw:{0}/unshield:{0}/mygui:{0}/bullet:{0}/src/callff/build/src:{0}/src/raknet/build/lib".format(
             install_prefix)
         build_env["LDFLAGS"] = "-llzma -lz -lbz2"
 
@@ -570,9 +521,8 @@ def main() -> None:
                              "-DCallFF_LIBRARY={}/callff/build/src/libcallff.a".format(SRC_DIR),
                              "-DRakNet_INCLUDES={}/raknet/include".format(SRC_DIR),
                              "-DRakNet_LIBRARY_DEBUG={}/raknet/build/lib/libRakNetLibStatic.a".format(SRC_DIR),
-                             "-DRakNet_LIBRARY_RELEASE={}/raknet/build/lib/libRakNetLibStatic.a".format(SRC_DIR),
-                             "-DTerra_INCLUDES={}/terra/include".format(install_prefix),
-                             "-DTerra_LIBRARY_RELEASE={}/terra/lib/libterra.a".format(install_prefix)]
+                             "-DRakNet_LIBRARY_RELEASE={}/raknet/build/lib/libRakNetLibStatic.a".format(SRC_DIR)]
+
         if tes3mp_serveronly:
             tes3mp_binary = "tes3mp-server"
             tes3mp_cmake_args.append(["-DBUILD_OPENMW_MP=ON", "-DBUILD_BROWSER=OFF",
