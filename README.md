@@ -45,8 +45,8 @@ Uses GrimKriegor's excellent `tes3mp-forge` build container
     # From inside this repository, build the image
     docker build -t build-openmw .
 
-    # Run the build, it will be placed into `/local/path`
-    docker run --rm --name build-openmw /local/path:/opt build-openmw
+    # Run the build, it will be placed into `$HOME/backups/build-openmw`
+    make tes3mp-package
 
 ### Build a release
 
