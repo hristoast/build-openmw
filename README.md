@@ -38,6 +38,16 @@ To build the `0.6.3` branch of TES3MP:
 
     build-openmw -MP -b 0.6.3
 
+### Build a portable TES3MP inside a docker container
+
+Uses GrimKriegor's excellent `tes3mp-forge` build container
+
+    # From inside this repository, build the image
+    docker build -t build-openmw .
+
+    # Run the build, it will be placed into `/local/path`
+    docker run --rm --name build-openmw /local/path:/opt build-openmw
+
 ### Build a release
 
 To build the `0.43` release of OpenMW:

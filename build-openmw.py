@@ -7,6 +7,7 @@ import shutil
 import subprocess
 import sys
 import tarfile
+import tempfile
 
 BULLET_VERSION = "2.86.1"
 MYGUI_VERSION = "3.2.2"
@@ -58,12 +59,12 @@ def ensure_dir(path: str, create=True):
                 execute_shell(["sudo", "mkdir", path])[1]
                 emit_log("Chowning '{}' so sudo isn't needed anymore...".format(path))
                 execute_shell(["sudo", "chown", '{}:'.format(os.getlogin()), path])[1]
-            emit_log("{} now exists!".format(path))
+            emit_log("{} now exists".format(path))
         else:
             emit_log("Does {0} exist? {1}".format(path), os.path.isdir(path))
             return os.path.isdir(path)
     else:
-        emit_log("{} exists!".format(path))
+        emit_log("{} exists".format(path))
 
 
 def error_and_die(msg: str) -> SystemExit:
@@ -91,7 +92,7 @@ def build_library(libname, check_file=None, clone_dest=None, cmake=True,
 
     def _git_clean_src():
         os.chdir(os.path.join(src_dir, clone_dest))
-        emit_log("{} executing source clean!".format(libname))
+        emit_log("{} executing source clean".format(libname))
         execute_shell(["git", "checkout", "--", "."], verbose=verbose)
         execute_shell(["git", "clean", "-df"], verbose=verbose)
         emit_log("{} resetting source to the desired rev ({rev})".format(
@@ -113,7 +114,7 @@ def build_library(libname, check_file=None, clone_dest=None, cmake=True,
                 error_and_die("Could not clone {} for some reason!".format(clone_dest))
 
         if force and os.path.exists(os.path.join(install_prefix, libname)):
-            emit_log("{} forcing removal of previous install!".format(libname))
+            emit_log("{} forcing removal of previous install".format(libname))
             shutil.rmtree(os.path.join(install_prefix, libname))
 
         _git_clean_src()
@@ -127,7 +128,7 @@ def build_library(libname, check_file=None, clone_dest=None, cmake=True,
         os.chdir(os.path.join(src_dir, clone_dest))
 
         if cmake:
-            emit_log("{} building with cmake!".format(libname))
+            emit_log("{} building with cmake".format(libname))
             build_dir = os.path.join(src_dir, clone_dest, "build")
             if os.path.isdir(build_dir):
                 shutil.rmtree(build_dir)
@@ -159,7 +160,7 @@ def build_library(libname, check_file=None, clone_dest=None, cmake=True,
             if err:
                 error_and_die(err.decode("utf-8"))
 
-            emit_log("{} installed successfully!".format(libname))
+            emit_log("{} installed successfully".format(libname))
 
 
 def get_distro() -> tuple:
@@ -183,6 +184,156 @@ def get_repo_sha(src_dir: str, repo="openmw", rev=None, pull=True, verbose=False
     return out.decode().strip()
 
 
+def make_portable_package(pkgname: str, distro, force=False, out_dir=OUT_DIR) -> bool:
+
+    if not os.path.isdir(out_dir):
+        emit_log("Out dir doesn't exist, creating it: " + out_dir)
+        os.makedirs(out_dir)
+
+    pkg_path = os.path.join(out_dir, pkgname + ".tar.bz2")
+    if os.path.exists(pkg_path) and not force:
+        error_and_die("Path exists: " + pkg_path)
+    elif os.path.exists(pkg_path) and force:
+        emit_log("Force removing " + pkg_path)
+        os.remove(pkg_path)
+
+    emit_log("Creating a portable package: " + pkg_path)
+
+    _tmpdir = tempfile.mkdtemp(suffix=pkgname)
+    pkg_dir = os.path.join(_tmpdir, pkgname)
+    pkg_libs = os.path.join(pkg_dir, "lib")
+
+    emit_log("Making: " + pkg_dir)
+    os.makedirs(pkg_libs)
+
+    bins = (
+        os.path.join(SRC_DIR, "tes3mp", "build", "bsatool"),
+        os.path.join(SRC_DIR, "tes3mp", "build", "esmtool"),
+        os.path.join(SRC_DIR, "tes3mp", "build", "openmw-essimporter"),
+        os.path.join(SRC_DIR, "tes3mp", "build", "openmw-iniimporter"),
+        os.path.join(SRC_DIR, "tes3mp", "build", "openmw-launcher"),
+        os.path.join(SRC_DIR, "tes3mp", "build", "openmw-wizard"),
+        os.path.join(SRC_DIR, "tes3mp", "build", "tes3mp"),
+        os.path.join(SRC_DIR, "tes3mp", "build", "tes3mp-browser"),
+        os.path.join(SRC_DIR, "tes3mp", "build", "tes3mp-client-default.cfg"),
+        os.path.join(SRC_DIR, "tes3mp", "build", "tes3mp-server"),
+        os.path.join(SRC_DIR, "tes3mp", "build", "tes3mp-server-default.cfg"))
+
+    if os.getenv("TES3MP_FORGE"):
+        # This is a build inside GrimKriegor's tes3mp-forge docker image
+        system_libs = (
+            "/usr/local/lib64/libstdc++.so.6",
+            "/usr/local/lib/libavcodec.so",
+            "/usr/local/lib/libavformat.so",
+            "/usr/local/lib/libavutil.so",
+            "/usr/local/lib/libboost_filesystem.so.1.64.0",
+            "/usr/local/lib/libboost_program_options.so.1.64.0",
+            "/usr/local/lib/libboost_system.so.1.64.0",
+            "/usr/local/lib/libboost_thread.so.1.64.0",
+            "/usr/local/lib/libswresample.so",
+            "/usr/local/lib/libswscale.so",
+            "/usr/lib/x86_64-linux-gnu/libSDL2.so",
+            "/usr/lib/x86_64-linux-gnu/libbz2.so",
+            "/usr/lib/x86_64-linux-gnu/libopenal.so",
+            "/usr/lib/x86_64-linux-gnu/libluajit-5.1.so",
+            "/usr/lib/x86_64-linux-gnu/libpng12.so")
+
+    elif "Void" in distro:
+        system_libs = (
+            # "/usr/lib/libstdc++.so.6",
+            "/usr/lib/libavcodec.so",
+            "/usr/lib/libavformat.so",
+            "/usr/lib/libavutil.so",
+            "/usr/lib/libboost_filesystem.so",
+            "/usr/lib/libboost_program_options.so",
+            "/usr/lib/libboost_system.so",
+            "/usr/lib/libboost_thread.so",
+            "/usr/lib/libswresample.so",
+            "/usr/lib/libswscale.so",
+            "/usr/lib/libSDL2.so",
+            "/usr/lib/libbz2.so",
+            "/usr/lib/libopenal.so",
+            "/usr/lib/libluajit-5.1.so",
+            "/usr/lib/libpng16.so",
+            "/usr/lib/libpng12.so")
+
+    elif "Ubuntu" in distro or "Debian in distro":
+        system_libs = (
+            # "/usr/lib/libstdc++.so.6",
+            "/usr/lib/x86_64-linux-gnu/libavcodec.so",
+            "/usr/lib/x86_64-linux-gnu/libavformat.so",
+            "/usr/lib/x86_64-linux-gnu/libavutil.so",
+            "/usr/lib/x86_64-linux-gnu/libboost_filesystem.so",
+            "/usr/lib/x86_64-linux-gnu/libboost_program_options.so",
+            "/usr/lib/x86_64-linux-gnu/libboost_system.so",
+            "/usr/lib/x86_64-linux-gnu/libboost_thread.so",
+            "/usr/lib/x86_64-linux-gnu/libswresample.so",
+            "/usr/lib/x86_64-linux-gnu/libswscale.so",
+            "/usr/lib/x86_64-linux-gnu/libSDL2.so",
+            "/usr/lib/x86_64-linux-gnu/libbz2.so",
+            "/usr/lib/x86_64-linux-gnu/libluajit-5.1.so",
+            "/usr/lib/x86_64-linux-gnu/libopenal.so",
+            "/usr/lib/x86_64-linux-gnu/libpng16.so")
+
+    openmw_libs = (
+        os.path.join(SRC_DIR, "bullet", "build", "src", "BulletCollision", "libBulletCollision.so"),
+        os.path.join(SRC_DIR, "bullet", "build", "src", "LinearMath", "libLinearMath.so"),
+        os.path.join(SRC_DIR, "mygui", "build", "lib", "libMyGUIEngine.so"),
+        os.path.join(SRC_DIR, "unshield", "build", "lib", "libunshield.so"),
+        os.path.join(SRC_DIR, "osg-openmw", "build", "lib", "libOpenThreads.so.21"),
+        os.path.join(SRC_DIR, "osg-openmw", "build", "lib", "libosg.so.160"),
+        os.path.join(SRC_DIR, "osg-openmw", "build", "lib", "libosgAnimation.so.160"),
+        os.path.join(SRC_DIR, "osg-openmw", "build", "lib", "libosgDB.so.160"),
+        os.path.join(SRC_DIR, "osg-openmw", "build", "lib", "libosgFX.so.160"),
+        os.path.join(SRC_DIR, "osg-openmw", "build", "lib", "libosgGA.so.160"),
+        os.path.join(SRC_DIR, "osg-openmw", "build", "lib", "libosgParticle.so.160"),
+        os.path.join(SRC_DIR, "osg-openmw", "build", "lib", "libosgText.so.160"),
+        os.path.join(SRC_DIR, "osg-openmw", "build", "lib", "libosgUtil.so.160"),
+        os.path.join(SRC_DIR, "osg-openmw", "build", "lib", "libosgViewer.so.160"),
+        os.path.join(SRC_DIR, "osg-openmw", "build", "lib", "libosgWidget.so.160"))
+
+    tes3mp_libs = (
+        os.path.join(SRC_DIR, "callff", "build", "src", "libcallff.a"),
+        os.path.join(SRC_DIR, "raknet", "build", "lib", "libRakNetLibStatic.a"))
+
+    emit_log("Copying binaries")
+    for b in bins:
+        emit_log("Copying {0} to {1}".format(b, pkg_dir), level=logging.DEBUG)
+        shutil.copy(b, pkg_dir)
+
+    emit_log("Copying system libs")
+    for lib in system_libs:
+        emit_log("Copying {0} to {1}".format(lib, pkg_libs), level=logging.DEBUG)
+        shutil.copy(lib, pkg_libs)
+
+    emit_log("Copying openmw libs")
+    for lib in openmw_libs:
+        emit_log("Copying {0} to {1}".format(lib, pkg_libs), level=logging.DEBUG)
+        shutil.copy(lib, pkg_libs)
+
+    emit_log("Copying tes3mp libs")
+    for lib in tes3mp_libs:
+        emit_log("Copying {0} to {1}".format(lib, pkg_libs), level=logging.DEBUG)
+        shutil.copy(lib, pkg_libs)
+
+    emit_log("Copying osgPlugins")
+    shutil.copytree(
+        os.path.join(SRC_DIR, "osg-openmw", "build", "lib", "osgPlugins-3.7.0"),
+        os.path.join(pkg_libs, "osgPlugins-3.7.0"))
+
+    _prev = os.getcwd()
+    os.chdir(_tmpdir)
+    emit_log("Creating package now: " + pkg_path)
+    tar = tarfile.open(pkg_path, "w:bz2")
+    tar.add(pkgname)
+    tar.close()
+
+    os.chdir(_prev)
+    emit_log("Removing: " + _tmpdir)
+    shutil.rmtree(_tmpdir)
+    return True
+
+
 def install_packages(distro: str, **kwargs) -> bool:
     quiet = kwargs.pop("quiet", "")
     verbose = kwargs.pop("verbose", "")
@@ -190,37 +341,33 @@ def install_packages(distro: str, **kwargs) -> bool:
     emit_log("Attempting to install dependency packages, please enter your sudo password as needed...",
              quiet=quiet)
     if 'void' in distro.lower():
-        emit_log("Distro detected as 'Void Linux'!")
+        emit_log("Distro detected as 'Void Linux'")
         cmd = ["sudo", "xbps-install", "--yes"] + VOID_PKGS
         out, err = execute_shell(cmd, verbose=verbose)[1]
-        msg = "Package installation completed!"
     elif 'debian' in distro.lower():
-        emit_log("Distro detected as 'Debian'!")
+        emit_log("Distro detected as 'Debian'")
         cmd = ["sudo", "apt-get", "install", "-y", "--allow-downgrades",
                "--allow-remove-essential", "--allow-change-held-packages"] + DEBIAN_PKGS
         out, err = execute_shell(cmd, verbose=verbose)[1]
-        msg = "Package installation completed!"
     elif 'devuan' in distro.lower():
-        emit_log("Distro detected as 'Devuan'!")
+        emit_log("Distro detected as 'Devuan'")
         # Debian packages should just work in this case.
         cmd = ["sudo", "apt-get", "install", "-y", "--force-yes"] + DEBIAN_PKGS
         out, err = execute_shell(cmd, verbose=verbose)[1]
-        msg = "Package installation completed!"
     elif 'ubuntu' in distro.lower():
-        emit_log("Distro detected as 'Ubuntu'!")
+        emit_log("Distro detected as 'Ubuntu'")
         cmd = ["sudo", "apt-get", "install", "-y", "--allow-downgrades",
                "--allow-remove-essential", "--allow-change-held-packages"] + UBUNTU_PKGS
         out, err = execute_shell(cmd, verbose=verbose)[1]
-        msg = "Package installation completed!"
     elif 'fedora' in distro.lower():
-        emit_log("Distro detected as 'Fedora'!")
+        emit_log("Distro detected as 'Fedora'")
         cmd = ["sudo", "dnf", "groupinstall", "-y", "development-tools"]
         out, err = execute_shell(cmd, verbose=verbose)[1]
         cmd = ["sudo", "dnf", "install", "-y"] + REDHAT_PKGS
         out, err = execute_shell(cmd, verbose=verbose)[1]
-        msg = "Package installation completed!"
     else:
         error_and_die("Your OS is not yet supported!  If you think you know what you are doing, you can use '-S' to continue anyways.")
+    msg = "Package installation completed"
 
     emit_log(msg)
     return out, err
@@ -243,20 +390,21 @@ def parse_argv() -> None:
     options.add_argument("--force-raknet", action="store_true", help="Force build Raknet.")
     options.add_argument("--force-tes3mp", action="store_true", help="Force build TES3MP.")
     options.add_argument("--force-unshield", action="store_true", help="Force build Unshield.")
+    options.add_argument("--force-pkg", action="store_true", help="Force build a package.")
     options.add_argument("--force-all", action="store_true", help="Force build all dependencies and OpenMW.")
     options.add_argument("--force-all-tes3mp", action="store_true", help="Force build all dependencies and TES3MP.")
     options.add_argument("--install-prefix", help="Set the install prefix. Default: {}".format(INSTALL_PREFIX))
     options.add_argument("-j", "--jobs",
                          help="How many cores to use with make.  Default: {}".format(CPUS))
-    options.add_argument("-J", "--just-openmw", action="store_true",
-                         help="If packaging, include just OpenMW.")
+    # options.add_argument("-J", "--just-openmw", action="store_true",
+    #                      help="If packaging, include just OpenMW.")
+    options.add_argument("-i", "--make-install", action="store_true", help="Run 'make install' on OpenMW or TES3MP.")
+    options.add_argument("-p", "--make-pkg", action="store_true", help="Make a portable package.")
     options.add_argument("-N", "--no-pull", action="store_true",
                          help="Don't do a 'git fetch --all' on the OpenMW sources.")
-    options.add_argument("-n", "--no-pkg", "--no-tar", action="store_true",
-                         help="Don't create a package.")
     options.add_argument("-o", "--out", metavar="DIR",
                          help="Where to write the package to.  Default: {}".format(OUT_DIR))
-    options.add_argument("-p", "--patch", help="Path to a patch file that should be applied.")
+    options.add_argument("-P", "--patch", help="Path to a patch file that should be applied.")
     options.add_argument("-S", "--skip-install-pkgs", action="store_true",
                          help="Don't try to install dependencies.")
     options.add_argument("--src-dir", help="Set the source directory. Default: {}".format(SRC_DIR))
@@ -287,10 +435,12 @@ def main() -> None:
     force_raknet = False
     force_tes3mp = False
     force_unshield = False
+    force_pkg = False
     install_prefix = INSTALL_PREFIX
     parsed = parse_argv()
-    just_openmw = False
-    no_pkg = False
+    # just_openmw = False
+    make_install = False
+    make_pkg = False
     out_dir = OUT_DIR
     patch = None
     pull = True
@@ -309,7 +459,8 @@ def main() -> None:
         force_openmw = True
         force_osg = True
         force_unshield = True
-        emit_log("Force building all dependencies!")
+        force_pkg = True
+        emit_log("Force building all dependencies")
     if parsed.force_all_tes3mp:
         force_bullet = True
         force_callff = True
@@ -318,46 +469,53 @@ def main() -> None:
         force_raknet = True
         force_tes3mp = True
         force_unshield = True
-        emit_log("Force building all TES3MP dependencies!")
+        force_pkg = True
+        emit_log("Force building all TES3MP dependencies")
     if parsed.force_bullet:
         force_bullet = True
-        emit_log("Forcing build of LibBullet!")
+        emit_log("Forcing build of LibBullet")
     if parsed.force_callff:
         force_callff = True
-        emit_log("Forcing build of CallFF!")
+        emit_log("Forcing build of CallFF")
     if parsed.force_mygui:
         force_mygui = True
-        emit_log("Forcing build of MyGUI!")
+        emit_log("Forcing build of MyGUI")
     if parsed.force_openmw:
         force_openmw = True
-        emit_log("Forcing build of OpenMW!")
+        emit_log("Forcing build of OpenMW")
     if parsed.force_osg:
         force_osg = True
-        emit_log("Forcing build of OSG!")
+        emit_log("Forcing build of OSG")
     if parsed.force_raknet:
         force_raknet = True
-        emit_log("Forcing build of Raknet!")
+        emit_log("Forcing build of Raknet")
     if parsed.force_tes3mp:
         force_tes3mp = True
-        emit_log("Forcing build of TES3MP!")
+        emit_log("Forcing build of TES3MP")
     if parsed.force_unshield:
         force_unshield = True
-        emit_log("Forcing build of Unshield!")
+        emit_log("Forcing build of Unshield")
+    if parsed.force_pkg:
+        force_pkg = True
+        emit_log("Forcing build of package")
     if parsed.install_prefix:
         install_prefix = parsed.install_prefix
         emit_log("Using the install prefix: " + install_prefix)
     if parsed.jobs:
         cpus = parsed.jobs
-        emit_log("'-j{}' will be used with make!".format(cpus))
-    if parsed.just_openmw:
-        just_openmw = parsed.just_openmw
-        emit_log("Just OpenMW enabled!")
-    if parsed.no_pkg:
-        no_pkg = parsed.no_pkg
-        emit_log("No package will be made!")
+        emit_log("'-j{}' will be used with make".format(cpus))
+    # if parsed.just_openmw:
+    #     just_openmw = parsed.just_openmw
+    #     emit_log("Just OpenMW enabled")
+    if parsed.make_install:
+        make_install = parsed.make_install
+        emit_log("Make install will be ran")
+    if parsed.make_pkg:
+        make_pkg = parsed.make_pkg
+        emit_log("A package will be made")
     if parsed.no_pull:
         pull = False
-        emit_log("git fetch will not be ran!")
+        emit_log("git fetch will not be ran")
     if parsed.out:
         out_dir = parsed.out
         emit_log("Out dir set to: " + out_dir)
@@ -369,7 +527,7 @@ def main() -> None:
             error_and_die("The supplied patch isn't a file!")
     if parsed.skip_install_pkgs:
         skip_install_pkgs = parsed.skip_install_pkgs
-        emit_log("Package installs will be skipped!")
+        emit_log("Package installs will be skipped")
     if parsed.src_dir:
         src_dir = parsed.src_dir
         emit_log("Source directory set to: " + src_dir)
@@ -386,11 +544,11 @@ def main() -> None:
         UBUNTU_PKGS.append("libluajit-5.1-dev")
         VOID_PKGS.append("LuaJIT-devel")
         tes3mp_serveronly = True
-        emit_log("TES3MP server-only build selected!")
+        emit_log("TES3MP server-only build selected")
     if parsed.verbose:
         verbose = parsed.verbose
         logging.getLogger().setLevel(logging.DEBUG)
-        emit_log("Verbose output enabled!")
+        emit_log("Verbose output enabled")
     if parsed.branch:
         branch = rev = parsed.branch
         if '/' not in branch:
@@ -525,14 +683,46 @@ def main() -> None:
 
         if tes3mp_serveronly:
             tes3mp_binary = "tes3mp-server"
-            tes3mp_cmake_args.append(["-DBUILD_OPENMW_MP=ON", "-DBUILD_BROWSER=OFF",
-                                      "-DBUILD_BSATOOL=OFF", "-DBUILD_ESMTOOL=OFF",
-                                      "-DBUILD_ESSIMPORTER=OFF", "-DBUILD_LAUNCHER=OFF",
-                                      "-DBUILD_MWINIIMPORTER=OFF", "-DBUILD_MYGUI_PLUGIN=OFF",
-                                      "-DBUILD_OPENMW=OFF", "-DBUILD_WIZARD=OFF"])
+            server_args = ["-DBUILD_OPENMW_MP=ON", "-DBUILD_BROWSER=OFF",
+                           "-DBUILD_BSATOOL=OFF", "-DBUILD_ESMTOOL=OFF",
+                           "-DBUILD_ESSIMPORTER=OFF", "-DBUILD_LAUNCHER=OFF",
+                           "-DBUILD_MWINIIMPORTER=OFF", "-DBUILD_MYGUI_PLUGIN=OFF",
+                           "-DBUILD_OPENMW=OFF", "-DBUILD_WIZARD=OFF"]
+            for arg in server_args:
+                tes3mp_cmake_args.append(arg)
+        else:
+            bullet = os.path.join(INSTALL_PREFIX, "bullet")
+            osg = os.path.join(INSTALL_PREFIX, "osg-openmw")
+            # These are needed on ubuntu..
+            full_args = [
+                "-DOPENTHREADS_INCLUDE_DIR={}/include".format(osg),
+                "-DOPENTHREADS_LIBRARY={}/lib64/libOpenThreads.so".format(osg),
+                "-DOSG_INCLUDE_DIR={}/include".format(osg),
+                "-DOSG_LIBRARY={}/lib64/libosg.so".format(osg),
+                "-DOSGANIMATION_INCLUDE_DIR={}/include".format(osg),
+                "-DOSGANIMATION_LIBRARY={}/lib64/libosgAnimation.so".format(osg),
+                "-DOSGDB_INCLUDE_DIR={}/include".format(osg),
+                "-DOSGDB_LIBRARY={}/lib64/libosgDB.so".format(osg),
+                "-DOSGFX_INCLUDE_DIR={}/include".format(osg),
+                "-DOSGFX_LIBRARY={}/lib64/libosgFX.so".format(osg),
+                "-DOSGGA_INCLUDE_DIR={}/include".format(osg),
+                "-DOSGGA_LIBRARY={}/lib64/libosgGA.so".format(osg),
+                "-DOSGPARTICLE_INCLUDE_DIR={}/include".format(osg),
+                "-DOSGPARTICLE_LIBRARY={}/lib64/libosgParticle.so".format(osg),
+                "-DOSGTEXT_INCLUDE_DIR={}/include".format(osg),
+                "-DOSGTEXT_LIBRARY={}/lib64/libosgText.so".format(osg),
+                "-DOSGUTIL_INCLUDE_DIR={}/include".format(osg),
+                "-DOSGUTIL_LIBRARY={}/lib64/libosgUtil.so".format(osg),
+                "-DOSGVIEWER_INCLUDE_DIR={}/include".format(osg),
+                "-DOSGVIEWER_LIBRARY={}/lib64/libosgViewer.so".format(osg),
+                "-DBullet_INCLUDE_DIR={}/include/bullet".format(bullet),
+                "-DBullet_BulletCollision_LIBRARY={}/lib/libBulletCollision.so".format(bullet),
+                "-DBullet_LinearMath_LIBRARY={}/lib/libLinearMath.so".format(bullet)]
+            for arg in full_args:
+                tes3mp_cmake_args.append(arg)
 
         build_library(tes3mp,
-                      check_file=os.path.join(install_prefix, tes3mp, "bin", tes3mp_binary),
+                      check_file=os.path.join(SRC_DIR, "tes3mp", "build", tes3mp_binary),
                       cmake_args=tes3mp_cmake_args,
                       clone_dest="tes3mp",
                       cpus=cpus,
@@ -540,18 +730,24 @@ def main() -> None:
                       force=force_tes3mp,
                       git_url='https://github.com/TES3MP/openmw-tes3mp.git',
                       install_prefix=install_prefix,
+                      make_install=make_install,
                       patch=patch,
                       src_dir=src_dir,
                       verbose=verbose,
                       version=rev)
 
         tes3mp_sha = get_repo_sha(src_dir, repo="tes3mp", rev=rev, pull=pull, verbose=verbose)
-        os.chdir(install_prefix)
-        if str(tes3mp_sha) not in tes3mp:
-            os.rename("tes3mp", "tes3mp-{}".format(tes3mp_sha))
-        if os.path.islink("tes3mp"):
-            os.remove("tes3mp")
-        os.symlink("tes3mp-" + tes3mp_sha, "tes3mp")
+
+        if make_install:
+            os.chdir(install_prefix)
+            if str(tes3mp_sha) not in tes3mp:
+                os.rename("tes3mp", "tes3mp-{}".format(tes3mp_sha))
+            if os.path.islink("tes3mp"):
+                os.remove("tes3mp")
+            os.symlink("tes3mp-" + tes3mp_sha, "tes3mp")
+
+        if make_pkg:
+            make_portable_package(tes3mp, distro, force=force_pkg, out_dir=out_dir)
 
     else:
         # OPENMW
@@ -580,8 +776,7 @@ def main() -> None:
                       version=rev)
         os.chdir(install_prefix)
         # Don't fetch updates since new ones might exist
-        # TODO: no git fetching on this one
-        openmw_sha = get_repo_sha(src_dir, rev=rev, pull=pull, verbose=verbose)
+        openmw_sha = get_repo_sha(src_dir, rev=rev, pull=False, verbose=verbose)
         os.chdir(install_prefix)
         if str(openmw_sha) not in openmw:
             os.rename("openmw", "openmw-{}".format(openmw_sha))
@@ -589,27 +784,8 @@ def main() -> None:
             os.remove("openmw")
         os.symlink("openmw-" + openmw_sha, "openmw")
 
-        if not no_pkg:
-            if not just_openmw:
-                os.chdir(os.path.join(install_prefix, ".."))
-                # TODO: Possible option to not exclude src...
-                exclude = "morrowind/src"
-                dest = "morrowind.tar.bzip2"
-                src = "morrowind"
-            else:
-                os.chdir(install_prefix)
-                exclude = "src"
-                dest = "openmw-{}.tar.bzip2".format(openmw_sha)
-                src = "openmw-{}".format(openmw_sha)
-
-            backup_file = os.path.join(out_dir, dest)
-            emit_log("Creating {} ...".format(backup_file))
-            if os.path.exists(backup_file) and os.path.isfile(backup_file):
-                os.remove(backup_file)
-            tar = tarfile.open(backup_file, "w:bz2")
-            tar.add(src, filter=lambda x: None if x.name == exclude else x)
-            tar.close()
-            emit_log("{} created!".format(backup_file))
+        if make_pkg:
+            make_portable_package(openmw, distro, force=force_pkg, out_dir=out_dir)
 
     emit_log("END {0} run at {1}".format(
         PROG, datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
