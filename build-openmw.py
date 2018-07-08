@@ -223,15 +223,16 @@ def make_portable_package(pkgname: str, distro, force=False, out_dir=OUT_DIR) ->
         # This is a build inside GrimKriegor's tes3mp-forge docker image
         system_libs = (
             "/usr/local/lib64/libstdc++.so.6",
-            "/usr/local/lib/libavcodec.so",
-            "/usr/local/lib/libavformat.so",
-            "/usr/local/lib/libavutil.so",
+            "/usr/local/lib/libMyGUIEngine.so.3.2.3",
+            "/usr/local/lib/libavcodec.so.58",
+            "/usr/local/lib/libavformat.so.58",
+            "/usr/local/lib/libavutil.so.56",
             "/usr/local/lib/libboost_filesystem.so.1.64.0",
             "/usr/local/lib/libboost_program_options.so.1.64.0",
             "/usr/local/lib/libboost_system.so.1.64.0",
             "/usr/local/lib/libboost_thread.so.1.64.0",
-            "/usr/local/lib/libswresample.so",
-            "/usr/local/lib/libswscale.so",
+            "/usr/local/lib/libswresample.so.3",
+            "/usr/local/lib/libswscale.so.5",
             "/usr/lib/x86_64-linux-gnu/libSDL2.so",
             "/usr/lib/x86_64-linux-gnu/libbz2.so",
             "/usr/lib/x86_64-linux-gnu/libopenal.so",
@@ -278,7 +279,8 @@ def make_portable_package(pkgname: str, distro, force=False, out_dir=OUT_DIR) ->
     openmw_libs = (
         os.path.join(SRC_DIR, "bullet", "build", "src", "BulletCollision", "libBulletCollision.so"),
         os.path.join(SRC_DIR, "bullet", "build", "src", "LinearMath", "libLinearMath.so"),
-        os.path.join(SRC_DIR, "mygui", "build", "lib", "libMyGUIEngine.so"),
+        # TODO: conditionally add this
+        # os.path.join(SRC_DIR, "mygui", "build", "lib", "libMyGUIEngine.so.3.2.3"),
         os.path.join(SRC_DIR, "unshield", "build", "lib", "libunshield.so"),
         os.path.join(SRC_DIR, "osg-openmw", "build", "lib", "libOpenThreads.so.21"),
         os.path.join(SRC_DIR, "osg-openmw", "build", "lib", "libosg.so.160"),
@@ -396,8 +398,6 @@ def parse_argv() -> None:
     options.add_argument("--install-prefix", help="Set the install prefix. Default: {}".format(INSTALL_PREFIX))
     options.add_argument("-j", "--jobs",
                          help="How many cores to use with make.  Default: {}".format(CPUS))
-    # options.add_argument("-J", "--just-openmw", action="store_true",
-    #                      help="If packaging, include just OpenMW.")
     options.add_argument("-i", "--make-install", action="store_true", help="Run 'make install' on OpenMW or TES3MP.")
     options.add_argument("-p", "--make-pkg", action="store_true", help="Make a portable package.")
     options.add_argument("-N", "--no-pull", action="store_true",
@@ -417,7 +417,6 @@ def parse_argv() -> None:
 
 
 def main() -> None:
-    # TODO: Fails to build on ubuntu 17.04, try a newer release perhaps?
     # TODO: option to skip a given dependency?
     logging.basicConfig(format=LOGFMT, level=logging.INFO, stream=sys.stdout)
     start = datetime.datetime.now()
@@ -438,7 +437,6 @@ def main() -> None:
     force_pkg = False
     install_prefix = INSTALL_PREFIX
     parsed = parse_argv()
-    # just_openmw = False
     make_install = False
     make_pkg = False
     out_dir = OUT_DIR
@@ -504,9 +502,6 @@ def main() -> None:
     if parsed.jobs:
         cpus = parsed.jobs
         emit_log("'-j{}' will be used with make".format(cpus))
-    # if parsed.just_openmw:
-    #     just_openmw = parsed.just_openmw
-    #     emit_log("Just OpenMW enabled")
     if parsed.make_install:
         make_install = parsed.make_install
         emit_log("Make install will be ran")
@@ -623,18 +618,22 @@ def main() -> None:
                   verbose=verbose,
                   version=UNSHIELD_VERSION)
 
-    # MYGUI
-    build_library("mygui",
-                  check_file=os.path.join(install_prefix, "mygui", "lib", "libMyGUIEngine.so"),
-                  cmake_args=["-DMYGUI_BUILD_TOOLS=OFF", "-DMYGUI_RENDERSYSTEM=1",
-                              "-DMYGUI_BUILD_DEMOS=OFF", "-DMYGUI_BUILD_PLUGINS=OFF"],
-                  cpus=cpus,
-                  force=force_mygui,
-                  git_url='https://github.com/MyGUI/mygui.git',
-                  install_prefix=install_prefix,
-                  src_dir=src_dir,
-                  verbose=verbose,
-                  version=MYGUI_VERSION)
+    # Don't build MyGUI if this is a dockerized build
+    if make_pkg and not os.getenv("TES3MP_FORGE"):
+        emit_log("Skipping MyGUI build")
+    else:
+        # MYGUI
+        build_library("mygui",
+                      check_file=os.path.join(install_prefix, "mygui", "lib", "libMyGUIEngine.so"),
+                      cmake_args=["-DMYGUI_BUILD_TOOLS=OFF", "-DMYGUI_RENDERSYSTEM=1",
+                                  "-DMYGUI_BUILD_DEMOS=OFF", "-DMYGUI_BUILD_PLUGINS=OFF"],
+                      cpus=cpus,
+                      force=force_mygui,
+                      git_url='https://github.com/MyGUI/mygui.git',
+                      install_prefix=install_prefix,
+                      src_dir=src_dir,
+                      verbose=verbose,
+                      version=MYGUI_VERSION)
 
     if tes3mp or tes3mp_serveronly:
         build_library("callff",
@@ -643,7 +642,7 @@ def main() -> None:
                       force=force_callff,
                       git_url='https://github.com/Koncord/CallFF.git',
                       install_prefix=install_prefix,
-                      make_install=False,  # For some reason, there's no install target
+                      make_install=False,  # Never ever make install this
                       src_dir=src_dir,
                       verbose=verbose,
                       version=CALLFF_VERSION)
@@ -656,7 +655,7 @@ def main() -> None:
                       force=force_raknet,
                       git_url='https://github.com/TES3MP/RakNet.git',
                       install_prefix=install_prefix,
-                      make_install=False,  # For some reason, there's no install target
+                      make_install=False,  # Never ever make install this
                       src_dir=src_dir,
                       verbose=verbose,
                       version=RAKNET_VERSION)
@@ -668,8 +667,13 @@ def main() -> None:
         else:
             tes3mp = "tes3mp"
         build_env = os.environ.copy()
-        build_env["CMAKE_PREFIX_PATH"] = "{0}/osg-openmw:{0}/unshield:{0}/mygui:{0}/bullet:{0}/src/callff/build/src:{0}/src/raknet/build/lib".format(
-            install_prefix)
+        if make_pkg:
+            # Don't need to include MyGUI because it wasn't built and/or is gotten from the system
+            build_env["CMAKE_PREFIX_PATH"] = "{0}/osg-openmw:{0}/unshield:{0}/bullet:{0}/src/callff/build/src:{0}/src/raknet/build/lib".format(
+                install_prefix)
+        else:
+            build_env["CMAKE_PREFIX_PATH"] = "{0}/osg-openmw:{0}/unshield:{0}/mygui:{0}/bullet:{0}/src/callff/build/src:{0}/src/raknet/build/lib".format(
+                install_prefix)
         build_env["LDFLAGS"] = "-llzma -lz -lbz2"
 
         tes3mp_binary = "tes3mp"
@@ -693,7 +697,6 @@ def main() -> None:
         else:
             bullet = os.path.join(INSTALL_PREFIX, "bullet")
             osg = os.path.join(INSTALL_PREFIX, "osg-openmw")
-            # These are needed on ubuntu..
             full_args = [
                 "-DOPENTHREADS_INCLUDE_DIR={}/include".format(osg),
                 "-DOPENTHREADS_LIBRARY={}/lib64/libOpenThreads.so".format(osg),

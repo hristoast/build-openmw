@@ -43,7 +43,7 @@ To build the `0.6.3` branch of TES3MP:
 Uses GrimKriegor's excellent `tes3mp-forge` build container
 
     # From inside this repository, build the image
-    docker build -t build-openmw .
+    make image
 
     # Run the build, it will be placed into `$HOME/backups/build-openmw`
     make tes3mp-package
