@@ -7,4 +7,4 @@ image:
 	sudo docker build -t build-openmw $(CURDIR)
 
 tes3mp-package:
-	sudo docker run --name build-openmw --rm -v $$HOME/backups/build-openmw:/opt build-openmw
+	sudo docker run --name build-openmw --rm -v $$HOME/backups/build-openmw:/opt build-openmw $(ARGS)
