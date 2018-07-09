@@ -213,6 +213,7 @@ def make_portable_package(pkgname: str, distro, force=False, out_dir=OUT_DIR) ->
         os.path.join(SRC_DIR, "tes3mp", "build", "openmw-iniimporter"),
         os.path.join(SRC_DIR, "tes3mp", "build", "openmw-launcher"),
         os.path.join(SRC_DIR, "tes3mp", "build", "openmw-wizard"),
+        os.path.join(SRC_DIR, "tes3mp", "build", "settings-default.cfg"),
         os.path.join(SRC_DIR, "tes3mp", "build", "tes3mp"),
         os.path.join(SRC_DIR, "tes3mp", "build", "tes3mp-browser"),
         os.path.join(SRC_DIR, "tes3mp", "build", "tes3mp-client-default.cfg"),
@@ -233,11 +234,26 @@ def make_portable_package(pkgname: str, distro, force=False, out_dir=OUT_DIR) ->
             "/usr/local/lib/libboost_thread.so.1.64.0",
             "/usr/local/lib/libswresample.so.3",
             "/usr/local/lib/libswscale.so.5",
-            "/usr/lib/x86_64-linux-gnu/libSDL2.so",
+            "/usr/local/lib64/libOpenThreads.so.20",
+            "/usr/local/lib64/libosg.so.130",
+            "/usr/local/lib64/libosgAnimation.so.130",
+            "/usr/local/lib64/libosgDB.so.130",
+            "/usr/local/lib64/libosgFX.so.130",
+            "/usr/local/lib64/libosgGA.so.130",
+            "/usr/local/lib64/libosgParticle.so.130",
+            "/usr/local/lib64/libosgText.so.130",
+            "/usr/local/lib64/libosgUtil.so.130",
+            "/usr/local/lib64/libosgViewer.so.130",
+            "/usr/local/lib64/libosgWidget.so.130",
+            "/usr/lib/x86_64-linux-gnu/libSDL2.a",
             "/usr/lib/x86_64-linux-gnu/libbz2.so",
             "/usr/lib/x86_64-linux-gnu/libopenal.so",
             "/usr/lib/x86_64-linux-gnu/libluajit-5.1.so",
-            "/usr/lib/x86_64-linux-gnu/libpng12.so")
+            "/usr/lib/x86_64-linux-gnu/libpng12.so.0")
+        openmw_libs = (
+            os.path.join(SRC_DIR, "bullet", "build", "src", "BulletCollision", "libBulletCollision.so.2.86"),
+            os.path.join(SRC_DIR, "bullet", "build", "src", "LinearMath", "libLinearMath.so.2.86"),
+            os.path.join(SRC_DIR, "unshield", "build", "lib", "libunshield.so"))
 
     elif "Void" in distro:
         system_libs = (
@@ -276,23 +292,23 @@ def make_portable_package(pkgname: str, distro, force=False, out_dir=OUT_DIR) ->
             "/usr/lib/x86_64-linux-gnu/libopenal.so",
             "/usr/lib/x86_64-linux-gnu/libpng16.so")
 
-    openmw_libs = (
-        os.path.join(SRC_DIR, "bullet", "build", "src", "BulletCollision", "libBulletCollision.so"),
-        os.path.join(SRC_DIR, "bullet", "build", "src", "LinearMath", "libLinearMath.so"),
-        # TODO: conditionally add this
-        # os.path.join(SRC_DIR, "mygui", "build", "lib", "libMyGUIEngine.so.3.2.3"),
-        os.path.join(SRC_DIR, "unshield", "build", "lib", "libunshield.so"),
-        os.path.join(SRC_DIR, "osg-openmw", "build", "lib", "libOpenThreads.so.21"),
-        os.path.join(SRC_DIR, "osg-openmw", "build", "lib", "libosg.so.160"),
-        os.path.join(SRC_DIR, "osg-openmw", "build", "lib", "libosgAnimation.so.160"),
-        os.path.join(SRC_DIR, "osg-openmw", "build", "lib", "libosgDB.so.160"),
-        os.path.join(SRC_DIR, "osg-openmw", "build", "lib", "libosgFX.so.160"),
-        os.path.join(SRC_DIR, "osg-openmw", "build", "lib", "libosgGA.so.160"),
-        os.path.join(SRC_DIR, "osg-openmw", "build", "lib", "libosgParticle.so.160"),
-        os.path.join(SRC_DIR, "osg-openmw", "build", "lib", "libosgText.so.160"),
-        os.path.join(SRC_DIR, "osg-openmw", "build", "lib", "libosgUtil.so.160"),
-        os.path.join(SRC_DIR, "osg-openmw", "build", "lib", "libosgViewer.so.160"),
-        os.path.join(SRC_DIR, "osg-openmw", "build", "lib", "libosgWidget.so.160"))
+    elif not os.getenv("TES3MP_FORGE"):
+        openmw_libs = (
+            os.path.join(SRC_DIR, "bullet", "build", "src", "BulletCollision", "libBulletCollision.so.2.86"),
+            os.path.join(SRC_DIR, "bullet", "build", "src", "LinearMath", "libLinearMath.so.2.86"),
+            os.path.join(SRC_DIR, "mygui", "build", "lib", "libMyGUIEngine.so.3.2.3"),
+            os.path.join(SRC_DIR, "unshield", "build", "lib", "libunshield.so"),
+            os.path.join(SRC_DIR, "osg-openmw", "build", "lib", "libOpenThreads.so.21"),
+            os.path.join(SRC_DIR, "osg-openmw", "build", "lib", "libosg.so.160"),
+            os.path.join(SRC_DIR, "osg-openmw", "build", "lib", "libosgAnimation.so.160"),
+            os.path.join(SRC_DIR, "osg-openmw", "build", "lib", "libosgDB.so.160"),
+            os.path.join(SRC_DIR, "osg-openmw", "build", "lib", "libosgFX.so.160"),
+            os.path.join(SRC_DIR, "osg-openmw", "build", "lib", "libosgGA.so.160"),
+            os.path.join(SRC_DIR, "osg-openmw", "build", "lib", "libosgParticle.so.160"),
+            os.path.join(SRC_DIR, "osg-openmw", "build", "lib", "libosgText.so.160"),
+            os.path.join(SRC_DIR, "osg-openmw", "build", "lib", "libosgUtil.so.160"),
+            os.path.join(SRC_DIR, "osg-openmw", "build", "lib", "libosgViewer.so.160"),
+            os.path.join(SRC_DIR, "osg-openmw", "build", "lib", "libosgWidget.so.160"))
 
     tes3mp_libs = (
         os.path.join(SRC_DIR, "callff", "build", "src", "libcallff.a"),
@@ -318,10 +334,21 @@ def make_portable_package(pkgname: str, distro, force=False, out_dir=OUT_DIR) ->
         emit_log("Copying {0} to {1}".format(lib, pkg_libs), level=logging.DEBUG)
         shutil.copy(lib, pkg_libs)
 
-    emit_log("Copying osgPlugins")
+    emit_log("Copying resources")
     shutil.copytree(
-        os.path.join(SRC_DIR, "osg-openmw", "build", "lib", "osgPlugins-3.7.0"),
-        os.path.join(pkg_libs, "osgPlugins-3.7.0"))
+        os.path.join(SRC_DIR, "tes3mp", "build", "resources"),
+        os.path.join(pkg_dir, "resources"))
+
+    if os.getenv("TES3MP_FORGE"):
+        emit_log("Copying osgPlugins-3.4.1")
+        shutil.copytree(
+            os.path.join("/usr/local/lib64/osgPlugins-3.4.1"),
+            os.path.join(pkg_libs, "osgPlugins-3.4.1"))
+    else:
+        emit_log("Copying osgPlugins-3.7.0")
+        shutil.copytree(
+            os.path.join(SRC_DIR, "osg-openmw", "build", "lib", "osgPlugins-3.7.0"),
+            os.path.join(pkg_libs, "osgPlugins-3.7.0"))
 
     _prev = os.getcwd()
     os.chdir(_tmpdir)
@@ -579,19 +606,22 @@ def main() -> None:
     ensure_dir(install_prefix)
     ensure_dir(src_dir)
 
-    # OSG-OPENMW
-    build_library("osg-openmw",
-                  check_file=os.path.join(install_prefix, "osg-openmw", "lib64", "libosg.so"),
-                  cmake_args=["-DBUILD_OSG_PLUGINS_BY_DEFAULT=0", "-DBUILD_OSG_PLUGIN_OSG=1",
-                              "-DBUILD_OSG_PLUGIN_DDS=1", "-DBUILD_OSG_PLUGIN_TGA=1",
-                              "-DBUILD_OSG_PLUGIN_BMP=1", "-DBUILD_OSG_PLUGIN_JPEG=1",
-                              "-DBUILD_OSG_PLUGIN_PNG=1", "-DBUILD_OSG_DEPRECATED_SERIALIZERS=0"],
-                  cpus=cpus,
-                  force=force_osg,
-                  git_url='https://github.com/OpenMW/osg.git',
-                  install_prefix=install_prefix,
-                  src_dir=src_dir,
-                  verbose=verbose)
+    if make_pkg and os.getenv("TES3MP_FORGE"):
+        emit_log("Skipping OSG-OPENMW build")
+    else:
+        # OSG-OPENMW
+        build_library("osg-openmw",
+                      check_file=os.path.join(install_prefix, "osg-openmw", "lib64", "libosg.so"),
+                      cmake_args=["-DBUILD_OSG_PLUGINS_BY_DEFAULT=0", "-DBUILD_OSG_PLUGIN_OSG=1",
+                                  "-DBUILD_OSG_PLUGIN_DDS=1", "-DBUILD_OSG_PLUGIN_TGA=1",
+                                  "-DBUILD_OSG_PLUGIN_BMP=1", "-DBUILD_OSG_PLUGIN_JPEG=1",
+                                  "-DBUILD_OSG_PLUGIN_PNG=1", "-DBUILD_OSG_DEPRECATED_SERIALIZERS=0"],
+                      cpus=cpus,
+                      force=force_osg,
+                      git_url='https://github.com/OpenMW/osg.git',
+                      install_prefix=install_prefix,
+                      src_dir=src_dir,
+                      verbose=verbose)
 
     # BULLET
     build_library("bullet",
@@ -619,7 +649,7 @@ def main() -> None:
                   version=UNSHIELD_VERSION)
 
     # Don't build MyGUI if this is a dockerized build
-    if make_pkg and not os.getenv("TES3MP_FORGE"):
+    if make_pkg and os.getenv("TES3MP_FORGE"):
         emit_log("Skipping MyGUI build")
     else:
         # MYGUI
@@ -667,9 +697,9 @@ def main() -> None:
         else:
             tes3mp = "tes3mp"
         build_env = os.environ.copy()
-        if make_pkg:
+        if make_pkg or os.getenv("TES3MP_FORGE"):
             # Don't need to include MyGUI because it wasn't built and/or is gotten from the system
-            build_env["CMAKE_PREFIX_PATH"] = "{0}/osg-openmw:{0}/unshield:{0}/bullet:{0}/src/callff/build/src:{0}/src/raknet/build/lib".format(
+            build_env["CMAKE_PREFIX_PATH"] = "/usr/local/lib64:/usr/local/lib:{0}/unshield:{0}/bullet:{0}/src/callff/build/src:{0}/src/raknet/build/lib".format(
                 install_prefix)
         else:
             build_env["CMAKE_PREFIX_PATH"] = "{0}/osg-openmw:{0}/unshield:{0}/mygui:{0}/bullet:{0}/src/callff/build/src:{0}/src/raknet/build/lib".format(
@@ -696,7 +726,8 @@ def main() -> None:
                 tes3mp_cmake_args.append(arg)
         else:
             bullet = os.path.join(INSTALL_PREFIX, "bullet")
-            osg = os.path.join(INSTALL_PREFIX, "osg-openmw")
+            # osg = os.path.join(INSTALL_PREFIX, "osg-openmw")
+            osg = "/usr/local"
             full_args = [
                 "-DOPENTHREADS_INCLUDE_DIR={}/include".format(osg),
                 "-DOPENTHREADS_LIBRARY={}/lib64/libOpenThreads.so".format(osg),
