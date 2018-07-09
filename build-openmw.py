@@ -246,9 +246,10 @@ def make_portable_package(pkgname: str, distro, force=False, out_dir=OUT_DIR) ->
             "/usr/local/lib64/libosgViewer.so.130",
             "/usr/local/lib64/libosgWidget.so.130",
             "/usr/lib/x86_64-linux-gnu/libSDL2.a",
+            "/usr/lib/x86_64-linux-gnu/libSDL2-2.0.so.0",
             "/usr/lib/x86_64-linux-gnu/libbz2.so",
             "/usr/lib/x86_64-linux-gnu/libopenal.so",
-            "/usr/lib/x86_64-linux-gnu/libluajit-5.1.so",
+            "/usr/lib/x86_64-linux-gnu/libluajit-5.1.so.2",
             "/usr/lib/x86_64-linux-gnu/libpng12.so.0")
         openmw_libs = (
             os.path.join(SRC_DIR, "bullet", "build", "src", "BulletCollision", "libBulletCollision.so.2.86"),
@@ -274,6 +275,7 @@ def make_portable_package(pkgname: str, distro, force=False, out_dir=OUT_DIR) ->
             "/usr/lib/libpng16.so",
             "/usr/lib/libpng12.so")
 
+    # This part is totally untested
     elif "Ubuntu" in distro or "Debian in distro":
         system_libs = (
             # "/usr/lib/libstdc++.so.6",
