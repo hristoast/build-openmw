@@ -412,8 +412,9 @@ def install_packages(distro: str, **kwargs) -> bool:
         else:
             cmd = ["sudo", "apt-get", "install", "-y", "--force-yes"] + DEBIAN_PKGS
         out, err = execute_shell(cmd, verbose=verbose)[1]
-    elif 'ubuntu' in distro.lower():
-        emit_log("Distro detected as 'Ubuntu'")
+    elif 'ubuntu' in distro.lower() or 'mint' in distro.lower():
+        emit_log("Distro detected as 'Mint' or 'Ubuntu'!")
+        msg = "Package installation completed!"
         if user_uid > 0:
             cmd = ["apt-get", "install", "-y", "--force-yes"] + UBUNTU_PKGS
         else:
