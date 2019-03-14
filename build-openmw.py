@@ -14,7 +14,7 @@ MYGUI_VERSION = "3.2.2"
 UNSHIELD_VERSION = "1.4.2"
 
 CALLFF_VERSION = "origin/master"
-RAKNET_VERSION = "1d6bb9e88db04aaeaa8752835c17574509d05a31"
+RAKNET_VERSION = "origin/master"
 
 CPUS = os.cpu_count() + 1
 INSTALL_PREFIX = os.path.join("/", "opt", "morrowind")
@@ -23,13 +23,28 @@ LOGFMT = '|-> %(message)s'
 OUT_DIR = os.getenv("HOME")
 SRC_DIR = os.path.join(INSTALL_PREFIX, "src")
 
-DEBIAN_PKGS = "git libopenal-dev libsdl2-dev libqt4-dev libboost-filesystem-dev libboost-thread-dev libboost-program-options-dev libboost-system-dev libavcodec-dev libavformat-dev libavutil-dev libswscale-dev libswresample-dev cmake build-essential libqt4-opengl-dev".split()
+ARCH_PKGS = "".split()
+DEBIAN_PKGS = "git libopenal-dev libsdl2-dev libqt4-dev libfreetype6-dev libboost-filesystem-dev libboost-thread-dev libboost-program-options-dev libboost-system-dev libavcodec-dev libavformat-dev libavutil-dev libswscale-dev cmake build-essential libqt4-opengl-dev".split()
 REDHAT_PKGS = "openal-devel SDL2-devel qt4-devel boost-filesystem git boost-thread boost-program-options boost-system ffmpeg-devel ffmpeg-libs gcc-c++ tinyxml-devel cmake".split()
 UBUNTU_PKGS = ["libfreetype6-dev", "libbz2-dev", "liblzma-dev"] + DEBIAN_PKGS
 VOID_PKGS = "boost-devel cmake ffmpeg-devel freetype-devel gcc git libavformat libavutil libmygui-devel libopenal-devel libopenjpeg2-devel libswresample libswscale libtxc_dxtn liblzma-devel libXt-devel make nasm ois-devel python-devel python3-devel qt-devel SDL2-devel zlib-devel".split()
 
 PROG = 'build-openmw'
-VERSION = "1.4"
+VERSION = "1.5"
+
+
+# |-> BEGIN build-openmw run at 2019-03-09 13:13:31
+# |-> Force building all dependencies
+# |-> Make install will be ran
+# |-> Package installs will be skipped
+# Traceback (most recent call last):
+#   File "/home/larry/.local/bin/build-openmw", line 914, in <module>
+#     main()
+#   File "/home/larry/.local/bin/build-openmw", line 629, in main
+#     ensure_dir(install_prefix)
+#   File "/home/larry/.local/bin/build-openmw", line 57, in ensure_dir
+#     os.mkdir(path)
+# FileNotFoundError: [Errno 2] No such file or directory: '/opt/morrowind'
 
 
 def emit_log(msg: str, level=logging.INFO, quiet=False, *args, **kwargs) -> None:
@@ -218,7 +233,8 @@ def make_portable_package(pkgname: str, distro, force=False, out_dir=OUT_DIR) ->
         os.path.join(SRC_DIR, "tes3mp", "build", "tes3mp-browser"),
         os.path.join(SRC_DIR, "tes3mp", "build", "tes3mp-client-default.cfg"),
         os.path.join(SRC_DIR, "tes3mp", "build", "tes3mp-server"),
-        os.path.join(SRC_DIR, "tes3mp", "build", "tes3mp-server-default.cfg"))
+        os.path.join(SRC_DIR, "tes3mp", "build", "tes3mp-server-default.cfg"),
+        os.path.join(SRC_DIR, "tes3mp", "tes3mp-credits.md"))
 
     if os.getenv("TES3MP_FORGE"):
         # This is a build inside GrimKriegor's tes3mp-forge docker image
@@ -231,7 +247,6 @@ def make_portable_package(pkgname: str, distro, force=False, out_dir=OUT_DIR) ->
             "/usr/local/lib/libboost_filesystem.so.1.64.0",
             "/usr/local/lib/libboost_program_options.so.1.64.0",
             "/usr/local/lib/libboost_system.so.1.64.0",
-            "/usr/local/lib/libboost_thread.so.1.64.0",
             "/usr/local/lib/libswresample.so.3",
             "/usr/local/lib/libswscale.so.5",
             "/usr/local/lib64/libOpenThreads.so.20",
@@ -247,7 +262,6 @@ def make_portable_package(pkgname: str, distro, force=False, out_dir=OUT_DIR) ->
             "/usr/local/lib64/libosgWidget.so.130",
             "/usr/lib/x86_64-linux-gnu/libSDL2.a",
             "/usr/lib/x86_64-linux-gnu/libSDL2-2.0.so.0",
-            "/usr/lib/x86_64-linux-gnu/libbz2.so",
             "/usr/lib/x86_64-linux-gnu/libopenal.so",
             "/usr/lib/x86_64-linux-gnu/libluajit-5.1.so.2",
             "/usr/lib/x86_64-linux-gnu/libpng12.so.0")
@@ -258,10 +272,9 @@ def make_portable_package(pkgname: str, distro, force=False, out_dir=OUT_DIR) ->
 
     elif "Void" in distro:
         system_libs = (
-            # "/usr/lib/libstdc++.so.6",
-            "/usr/lib/libavcodec.so",
-            "/usr/lib/libavformat.so",
-            "/usr/lib/libavutil.so",
+            "/usr/lib/libavcodec.so.58",
+            "/usr/lib/libavformat.so.58",
+            "/usr/lib/libavutil.so.56",
             "/usr/lib/libboost_filesystem.so",
             "/usr/lib/libboost_program_options.so",
             "/usr/lib/libboost_system.so",
@@ -272,13 +285,11 @@ def make_portable_package(pkgname: str, distro, force=False, out_dir=OUT_DIR) ->
             "/usr/lib/libbz2.so",
             "/usr/lib/libopenal.so",
             "/usr/lib/libluajit-5.1.so",
-            "/usr/lib/libpng16.so",
-            "/usr/lib/libpng12.so")
+            "/usr/lib/libpng16.so")
 
     # This part is totally untested
     elif "Ubuntu" in distro or "Debian in distro":
         system_libs = (
-            # "/usr/lib/libstdc++.so.6",
             "/usr/lib/x86_64-linux-gnu/libavcodec.so",
             "/usr/lib/x86_64-linux-gnu/libavformat.so",
             "/usr/lib/x86_64-linux-gnu/libavutil.so",
@@ -294,23 +305,23 @@ def make_portable_package(pkgname: str, distro, force=False, out_dir=OUT_DIR) ->
             "/usr/lib/x86_64-linux-gnu/libopenal.so",
             "/usr/lib/x86_64-linux-gnu/libpng16.so")
 
-    elif not os.getenv("TES3MP_FORGE"):
+    if not os.getenv("TES3MP_FORGE"):
         openmw_libs = (
             os.path.join(SRC_DIR, "bullet", "build", "src", "BulletCollision", "libBulletCollision.so.2.86"),
             os.path.join(SRC_DIR, "bullet", "build", "src", "LinearMath", "libLinearMath.so.2.86"),
             os.path.join(SRC_DIR, "mygui", "build", "lib", "libMyGUIEngine.so.3.2.3"),
             os.path.join(SRC_DIR, "unshield", "build", "lib", "libunshield.so"),
-            os.path.join(SRC_DIR, "osg-openmw", "build", "lib", "libOpenThreads.so.21"),
-            os.path.join(SRC_DIR, "osg-openmw", "build", "lib", "libosg.so.160"),
-            os.path.join(SRC_DIR, "osg-openmw", "build", "lib", "libosgAnimation.so.160"),
-            os.path.join(SRC_DIR, "osg-openmw", "build", "lib", "libosgDB.so.160"),
-            os.path.join(SRC_DIR, "osg-openmw", "build", "lib", "libosgFX.so.160"),
-            os.path.join(SRC_DIR, "osg-openmw", "build", "lib", "libosgGA.so.160"),
-            os.path.join(SRC_DIR, "osg-openmw", "build", "lib", "libosgParticle.so.160"),
-            os.path.join(SRC_DIR, "osg-openmw", "build", "lib", "libosgText.so.160"),
-            os.path.join(SRC_DIR, "osg-openmw", "build", "lib", "libosgUtil.so.160"),
-            os.path.join(SRC_DIR, "osg-openmw", "build", "lib", "libosgViewer.so.160"),
-            os.path.join(SRC_DIR, "osg-openmw", "build", "lib", "libosgWidget.so.160"))
+            os.path.join(SRC_DIR, "osg-openmw", "build", "lib", "libOpenThreads.so.20"),
+            os.path.join(SRC_DIR, "osg-openmw", "build", "lib", "libosg.so.130"),
+            os.path.join(SRC_DIR, "osg-openmw", "build", "lib", "libosgAnimation.so.130"),
+            os.path.join(SRC_DIR, "osg-openmw", "build", "lib", "libosgDB.so.130"),
+            os.path.join(SRC_DIR, "osg-openmw", "build", "lib", "libosgFX.so.130"),
+            os.path.join(SRC_DIR, "osg-openmw", "build", "lib", "libosgGA.so.130"),
+            os.path.join(SRC_DIR, "osg-openmw", "build", "lib", "libosgParticle.so.130"),
+            os.path.join(SRC_DIR, "osg-openmw", "build", "lib", "libosgText.so.130"),
+            os.path.join(SRC_DIR, "osg-openmw", "build", "lib", "libosgUtil.so.130"),
+            os.path.join(SRC_DIR, "osg-openmw", "build", "lib", "libosgViewer.so.130"),
+            os.path.join(SRC_DIR, "osg-openmw", "build", "lib", "libosgWidget.so.130"))
 
     tes3mp_libs = (
         os.path.join(SRC_DIR, "callff", "build", "src", "libcallff.a"),
@@ -347,10 +358,10 @@ def make_portable_package(pkgname: str, distro, force=False, out_dir=OUT_DIR) ->
             os.path.join("/usr/local/lib64/osgPlugins-3.4.1"),
             os.path.join(pkg_libs, "osgPlugins-3.4.1"))
     else:
-        emit_log("Copying osgPlugins-3.7.0")
+        emit_log("Copying osgPlugins-3.4.1")
         shutil.copytree(
-            os.path.join(SRC_DIR, "osg-openmw", "build", "lib", "osgPlugins-3.7.0"),
-            os.path.join(pkg_libs, "osgPlugins-3.7.0"))
+            os.path.join(SRC_DIR, "osg-openmw", "build", "lib", "osgPlugins-3.4.1"),
+            os.path.join(pkg_libs, "osgPlugins-3.4.1"))
 
     _prev = os.getcwd()
     os.chdir(_tmpdir)
@@ -371,31 +382,55 @@ def install_packages(distro: str, **kwargs) -> bool:
 
     emit_log("Attempting to install dependency packages, please enter your sudo password as needed...",
              quiet=quiet)
+    user_uid = os.getuid()
     if 'void' in distro.lower():
         emit_log("Distro detected as 'Void Linux'")
-        cmd = ["sudo", "xbps-install", "--yes"] + VOID_PKGS
+        cmd = ["xbps-install", "--yes"] + VOID_PKGS
+        if user_uid > 0:
+            cmd = ["sudo"] + cmd
+        out, err = execute_shell(cmd, verbose=verbose)[1]
+    elif 'arch' in distro.lower():
+        emit_log("Distro detected as 'Arch Linux'")
+        cmd = ["pacman", "-sy"] + ARCH_PKGS
+        if user_uid > 0:
+            cmd = ["sudo"] + cmd
         out, err = execute_shell(cmd, verbose=verbose)[1]
     elif 'debian' in distro.lower():
         emit_log("Distro detected as 'Debian'")
-        cmd = ["sudo", "apt-get", "install", "-y", "--allow-downgrades",
-               "--allow-remove-essential", "--allow-change-held-packages"] + DEBIAN_PKGS
+        if user_uid > 0:
+            cmd = ["sudo", "apt-get", "install", "-y",
+                   "--force-yes"] + DEBIAN_PKGS
+        else:
+            cmd = ["apt-get", "install", "-y",
+                   "--force-yes"] + DEBIAN_PKGS
         out, err = execute_shell(cmd, verbose=verbose)[1]
     elif 'devuan' in distro.lower():
         emit_log("Distro detected as 'Devuan'")
         # Debian packages should just work in this case.
-        cmd = ["sudo", "apt-get", "install", "-y", "--force-yes"] + DEBIAN_PKGS
+        if user_uid > 0:
+            cmd = ["apt-get", "install", "-y", "--force-yes"] + DEBIAN_PKGS
+        else:
+            cmd = ["sudo", "apt-get", "install", "-y", "--force-yes"] + DEBIAN_PKGS
         out, err = execute_shell(cmd, verbose=verbose)[1]
     elif 'ubuntu' in distro.lower():
         emit_log("Distro detected as 'Ubuntu'")
-        cmd = ["sudo", "apt-get", "install", "-y", "--allow-downgrades",
-               "--allow-remove-essential", "--allow-change-held-packages"] + UBUNTU_PKGS
+        if user_uid > 0:
+            cmd = ["apt-get", "install", "-y", "--force-yes"] + UBUNTU_PKGS
+        else:
+            cmd = ["sudo", "apt-get", "install", "-y", "--force-yes"] + UBUNTU_PKGS
         out, err = execute_shell(cmd, verbose=verbose)[1]
     elif 'fedora' in distro.lower():
         emit_log("Distro detected as 'Fedora'")
-        cmd = ["sudo", "dnf", "groupinstall", "-y", "development-tools"]
-        out, err = execute_shell(cmd, verbose=verbose)[1]
-        cmd = ["sudo", "dnf", "install", "-y"] + REDHAT_PKGS
-        out, err = execute_shell(cmd, verbose=verbose)[1]
+        if user_uid > 0:
+            cmd = ["dnf", "groupinstall", "-y", "development-tools"]
+            out, err = execute_shell(cmd, verbose=verbose)[1]
+            cmd = ["dnf", "install", "-y"] + REDHAT_PKGS
+            out, err = execute_shell(cmd, verbose=verbose)[1]
+        else:
+            cmd = ["sudo", "dnf", "groupinstall", "-y", "development-tools"]
+            out, err = execute_shell(cmd, verbose=verbose)[1]
+            cmd = ["sudo", "dnf", "install", "-y"] + REDHAT_PKGS
+            out, err = execute_shell(cmd, verbose=verbose)[1]
     else:
         error_and_die("Your OS is not yet supported!  If you think you know what you are doing, you can use '-S' to continue anyways.")
     msg = "Package installation completed"
@@ -699,14 +734,14 @@ def main() -> None:
         else:
             tes3mp = "tes3mp"
         build_env = os.environ.copy()
-        if make_pkg or os.getenv("TES3MP_FORGE"):
+        if os.getenv("TES3MP_FORGE"):
             # Don't need to include MyGUI because it wasn't built and/or is gotten from the system
             build_env["CMAKE_PREFIX_PATH"] = "/usr/local/lib64:/usr/local/lib:{0}/unshield:{0}/bullet:{0}/src/callff/build/src:{0}/src/raknet/build/lib".format(
                 install_prefix)
         else:
             build_env["CMAKE_PREFIX_PATH"] = "{0}/osg-openmw:{0}/unshield:{0}/mygui:{0}/bullet:{0}/src/callff/build/src:{0}/src/raknet/build/lib".format(
                 install_prefix)
-        build_env["LDFLAGS"] = "-llzma -lz -lbz2"
+            build_env["LDFLAGS"] = "-llzma -lz -lbz2"
 
         tes3mp_binary = "tes3mp"
         tes3mp_cmake_args = ["-Wno-dev", "-DCMAKE_BUILD_TYPE=Release", "-DBUILD_OPENCS=OFF",
@@ -728,32 +763,59 @@ def main() -> None:
                 tes3mp_cmake_args.append(arg)
         else:
             bullet = os.path.join(INSTALL_PREFIX, "bullet")
-            # osg = os.path.join(INSTALL_PREFIX, "osg-openmw")
-            osg = "/usr/local"
-            full_args = [
-                "-DOPENTHREADS_INCLUDE_DIR={}/include".format(osg),
-                "-DOPENTHREADS_LIBRARY={}/lib64/libOpenThreads.so".format(osg),
-                "-DOSG_INCLUDE_DIR={}/include".format(osg),
-                "-DOSG_LIBRARY={}/lib64/libosg.so".format(osg),
-                "-DOSGANIMATION_INCLUDE_DIR={}/include".format(osg),
-                "-DOSGANIMATION_LIBRARY={}/lib64/libosgAnimation.so".format(osg),
-                "-DOSGDB_INCLUDE_DIR={}/include".format(osg),
-                "-DOSGDB_LIBRARY={}/lib64/libosgDB.so".format(osg),
-                "-DOSGFX_INCLUDE_DIR={}/include".format(osg),
-                "-DOSGFX_LIBRARY={}/lib64/libosgFX.so".format(osg),
-                "-DOSGGA_INCLUDE_DIR={}/include".format(osg),
-                "-DOSGGA_LIBRARY={}/lib64/libosgGA.so".format(osg),
-                "-DOSGPARTICLE_INCLUDE_DIR={}/include".format(osg),
-                "-DOSGPARTICLE_LIBRARY={}/lib64/libosgParticle.so".format(osg),
-                "-DOSGTEXT_INCLUDE_DIR={}/include".format(osg),
-                "-DOSGTEXT_LIBRARY={}/lib64/libosgText.so".format(osg),
-                "-DOSGUTIL_INCLUDE_DIR={}/include".format(osg),
-                "-DOSGUTIL_LIBRARY={}/lib64/libosgUtil.so".format(osg),
-                "-DOSGVIEWER_INCLUDE_DIR={}/include".format(osg),
-                "-DOSGVIEWER_LIBRARY={}/lib64/libosgViewer.so".format(osg),
-                "-DBullet_INCLUDE_DIR={}/include/bullet".format(bullet),
-                "-DBullet_BulletCollision_LIBRARY={}/lib/libBulletCollision.so".format(bullet),
-                "-DBullet_LinearMath_LIBRARY={}/lib/libLinearMath.so".format(bullet)]
+            if os.getenv("TES3MP_FORGE"):
+                osg = "/usr/local"
+                full_args = [
+                    "-DOPENTHREADS_INCLUDE_DIR={}/include".format(osg),
+                    "-DOPENTHREADS_LIBRARY={}/lib64/libOpenThreads.so".format(osg),
+                    "-DOSG_INCLUDE_DIR={}/include".format(osg),
+                    "-DOSG_LIBRARY={}/lib64/libosg.so".format(osg),
+                    "-DOSGANIMATION_INCLUDE_DIR={}/include".format(osg),
+                    "-DOSGANIMATION_LIBRARY={}/lib64/libosgAnimation.so".format(osg),
+                    "-DOSGDB_INCLUDE_DIR={}/include".format(osg),
+                    "-DOSGDB_LIBRARY={}/lib64/libosgDB.so".format(osg),
+                    "-DOSGFX_INCLUDE_DIR={}/include".format(osg),
+                    "-DOSGFX_LIBRARY={}/lib64/libosgFX.so".format(osg),
+                    "-DOSGGA_INCLUDE_DIR={}/include".format(osg),
+                    "-DOSGGA_LIBRARY={}/lib64/libosgGA.so".format(osg),
+                    "-DOSGPARTICLE_INCLUDE_DIR={}/include".format(osg),
+                    "-DOSGPARTICLE_LIBRARY={}/lib64/libosgParticle.so".format(osg),
+                    "-DOSGTEXT_INCLUDE_DIR={}/include".format(osg),
+                    "-DOSGTEXT_LIBRARY={}/lib64/libosgText.so".format(osg),
+                    "-DOSGUTIL_INCLUDE_DIR={}/include".format(osg),
+                    "-DOSGUTIL_LIBRARY={}/lib64/libosgUtil.so".format(osg),
+                    "-DOSGVIEWER_INCLUDE_DIR={}/include".format(osg),
+                    "-DOSGVIEWER_LIBRARY={}/lib64/libosgViewer.so".format(osg),
+                    "-DBullet_INCLUDE_DIR={}/include/bullet".format(bullet),
+                    "-DBullet_BulletCollision_LIBRARY={}/lib/libBulletCollision.so".format(bullet),
+                    "-DBullet_LinearMath_LIBRARY={}/lib/libLinearMath.so".format(bullet)]
+
+            else:
+                osg = os.path.join(INSTALL_PREFIX, "osg-openmw")
+                full_args = [
+                    "-DOPENTHREADS_INCLUDE_DIR={}/include".format(osg),
+                    "-DOPENTHREADS_LIBRARY={}/lib64/libOpenThreads.so".format(osg),
+                    "-DOSG_INCLUDE_DIR={}/include".format(osg),
+                    "-DOSG_LIBRARY={}/lib64/libosg.so".format(osg),
+                    "-DOSGANIMATION_INCLUDE_DIR={}/include".format(osg),
+                    "-DOSGANIMATION_LIBRARY={}/lib64/libosgAnimation.so".format(osg),
+                    "-DOSGDB_INCLUDE_DIR={}/include".format(osg),
+                    "-DOSGDB_LIBRARY={}/lib64/libosgDB.so".format(osg),
+                    "-DOSGFX_INCLUDE_DIR={}/include".format(osg),
+                    "-DOSGFX_LIBRARY={}/lib64/libosgFX.so".format(osg),
+                    "-DOSGGA_INCLUDE_DIR={}/include".format(osg),
+                    "-DOSGGA_LIBRARY={}/lib64/libosgGA.so".format(osg),
+                    "-DOSGPARTICLE_INCLUDE_DIR={}/include".format(osg),
+                    "-DOSGPARTICLE_LIBRARY={}/lib64/libosgParticle.so".format(osg),
+                    "-DOSGTEXT_INCLUDE_DIR={}/include".format(osg),
+                    "-DOSGTEXT_LIBRARY={}/lib64/libosgText.so".format(osg),
+                    "-DOSGUTIL_INCLUDE_DIR={}/include".format(osg),
+                    "-DOSGUTIL_LIBRARY={}/lib64/libosgUtil.so".format(osg),
+                    "-DOSGVIEWER_INCLUDE_DIR={}/include".format(osg),
+                    "-DOSGVIEWER_LIBRARY={}/lib64/libosgViewer.so".format(osg),
+                    "-DBullet_INCLUDE_DIR={}/include/bullet".format(bullet),
+                    "-DBullet_BulletCollision_LIBRARY={}/lib/libBulletCollision.so".format(bullet),
+                    "-DBullet_LinearMath_LIBRARY={}/lib/libLinearMath.so".format(bullet)]
             for arg in full_args:
                 tes3mp_cmake_args.append(arg)
 
@@ -797,9 +859,39 @@ def main() -> None:
         build_env["CMAKE_PREFIX_PATH"] = "{0}/osg-openmw:{0}/unshield:{0}/mygui:{0}/bullet".format(
             install_prefix)
         build_env["LDFLAGS"] = "-llzma -lz -lbz2"
+
+        bullet = os.path.join(INSTALL_PREFIX, "bullet")
+        osg = os.path.join(INSTALL_PREFIX, "osg-openmw")
+        full_args = [
+            "-DCMAKE_BUILD_TYPE=MinSizeRel",
+            "-DDESIRED_QT_VERSION=5",
+            "-DOPENTHREADS_INCLUDE_DIR={}/include".format(osg),
+            "-DOPENTHREADS_LIBRARY={}/lib64/libOpenThreads.so".format(osg),
+            "-DOSG_INCLUDE_DIR={}/include".format(osg),
+            "-DOSG_LIBRARY={}/lib64/libosg.so".format(osg),
+            "-DOSGANIMATION_INCLUDE_DIR={}/include".format(osg),
+            "-DOSGANIMATION_LIBRARY={}/lib64/libosgAnimation.so".format(osg),
+            "-DOSGDB_INCLUDE_DIR={}/include".format(osg),
+            "-DOSGDB_LIBRARY={}/lib64/libosgDB.so".format(osg),
+            "-DOSGFX_INCLUDE_DIR={}/include".format(osg),
+            "-DOSGFX_LIBRARY={}/lib64/libosgFX.so".format(osg),
+            "-DOSGGA_INCLUDE_DIR={}/include".format(osg),
+            "-DOSGGA_LIBRARY={}/lib64/libosgGA.so".format(osg),
+            "-DOSGPARTICLE_INCLUDE_DIR={}/include".format(osg),
+            "-DOSGPARTICLE_LIBRARY={}/lib64/libosgParticle.so".format(osg),
+            "-DOSGTEXT_INCLUDE_DIR={}/include".format(osg),
+            "-DOSGTEXT_LIBRARY={}/lib64/libosgText.so".format(osg),
+            "-DOSGUTIL_INCLUDE_DIR={}/include".format(osg),
+            "-DOSGUTIL_LIBRARY={}/lib64/libosgUtil.so".format(osg),
+            "-DOSGVIEWER_INCLUDE_DIR={}/include".format(osg),
+            "-DOSGVIEWER_LIBRARY={}/lib64/libosgViewer.so".format(osg),
+            "-DBullet_INCLUDE_DIR={}/include/bullet".format(bullet),
+            "-DBullet_BulletCollision_LIBRARY={}/lib/libBulletCollision.so".format(bullet),
+            "-DBullet_LinearMath_LIBRARY={}/lib/libLinearMath.so".format(bullet)]
+
         build_library(openmw,
                       check_file=os.path.join(install_prefix, openmw, "bin", "openmw"),
-                      cmake_args=["-DCMAKE_BUILD_TYPE=MinSizeRel"],
+                      cmake_args=full_args,
                       clone_dest="openmw",
                       cpus=cpus,
                       env=build_env,
