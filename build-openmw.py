@@ -19,32 +19,18 @@ RAKNET_VERSION = "origin/master"
 CPUS = os.cpu_count() + 1
 INSTALL_PREFIX = os.path.join("/", "opt", "morrowind")
 DESC = "Build OpenMW for your system, install it all to {}.  Also builds OSG, libBullet, Unshield, and MyGUI, and links against those builds.".format(INSTALL_PREFIX)
-LOGFMT = '|-> %(message)s'
+LOGFMT = '%(asctime)s | %(message)s'
 OUT_DIR = os.getenv("HOME")
 SRC_DIR = os.path.join(INSTALL_PREFIX, "src")
 
 ARCH_PKGS = "".split()
-DEBIAN_PKGS = "git libopenal-dev libsdl2-dev libqt4-dev libfreetype6-dev libboost-filesystem-dev libboost-thread-dev libboost-program-options-dev libboost-system-dev libavcodec-dev libavformat-dev libavutil-dev libswscale-dev cmake build-essential libqt4-opengl-dev".split()
-REDHAT_PKGS = "openal-devel SDL2-devel qt4-devel boost-filesystem git boost-thread boost-program-options boost-system ffmpeg-devel ffmpeg-libs gcc-c++ tinyxml-devel cmake".split()
+DEBIAN_PKGS = "git libopenal-dev libsdl2-dev libqt5-dev libfreetype6-dev libboost-filesystem-dev libboost-thread-dev libboost-program-options-dev libboost-system-dev libavcodec-dev libavformat-dev libavutil-dev libswscale-dev cmake build-essential libqt5-opengl-dev".split()
+REDHAT_PKGS = "openal-devel SDL2-devel qt5-devel boost-filesystem git boost-thread boost-program-options boost-system ffmpeg-devel ffmpeg-libs gcc-c++ tinyxml-devel cmake".split()
 UBUNTU_PKGS = ["libfreetype6-dev", "libbz2-dev", "liblzma-dev"] + DEBIAN_PKGS
-VOID_PKGS = "boost-devel cmake ffmpeg-devel freetype-devel gcc git libavformat libavutil libmygui-devel libopenal-devel libopenjpeg2-devel libswresample libswscale libtxc_dxtn liblzma-devel libXt-devel make nasm ois-devel python-devel python3-devel qt-devel SDL2-devel zlib-devel".split()
+VOID_PKGS = "boost-devel cmake ffmpeg-devel freetype-devel gcc git libavformat libavutil libmygui-devel libopenal-devel libopenjpeg2-devel libswresample libswscale libtxc_dxtn liblzma-devel libXt-devel make nasm ois-devel pkg-config python-devel python3-devel qt5-devel SDL2-devel zlib-devel".split()
 
 PROG = 'build-openmw'
-VERSION = "1.5"
-
-
-# |-> BEGIN build-openmw run at 2019-03-09 13:13:31
-# |-> Force building all dependencies
-# |-> Make install will be ran
-# |-> Package installs will be skipped
-# Traceback (most recent call last):
-#   File "/home/larry/.local/bin/build-openmw", line 914, in <module>
-#     main()
-#   File "/home/larry/.local/bin/build-openmw", line 629, in main
-#     ensure_dir(install_prefix)
-#   File "/home/larry/.local/bin/build-openmw", line 57, in ensure_dir
-#     os.mkdir(path)
-# FileNotFoundError: [Errno 2] No such file or directory: '/opt/morrowind'
+VERSION = "1.6"
 
 
 def emit_log(msg: str, level=logging.INFO, quiet=False, *args, **kwargs) -> None:
@@ -485,10 +471,6 @@ def main() -> None:
     # TODO: option to skip a given dependency?
     logging.basicConfig(format=LOGFMT, level=logging.INFO, stream=sys.stdout)
     start = datetime.datetime.now()
-    # No log output when showing the help/usage text.
-    if "-h" not in sys.argv and "--help" not in sys.argv and "--version" not in sys.argv:
-        emit_log("BEGIN {0} run at {1}".format(
-            PROG, datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
     cpus = CPUS
     distro = None
     force_bullet = False
@@ -641,6 +623,9 @@ def main() -> None:
             # Isn't always necessarily exit-worthy
             emit_log("Stderr received: " + err.decode())
 
+    # This is a serious edge case, but let's
+    # show a sane error when /opt doesn't exist.
+    ensure_dir(os.path.join("/", "opt"))
     ensure_dir(install_prefix)
     ensure_dir(src_dir)
 
@@ -916,8 +901,8 @@ def main() -> None:
         if make_pkg:
             make_portable_package(openmw, distro, force=force_pkg, out_dir=out_dir)
 
-    emit_log("END {0} run at {1}".format(
-        PROG, datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
+    # emit_log("END {0} run at {1}".format(
+    #     PROG, datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
     end = datetime.datetime.now()
     duration = end - start
     minutes = int(duration.total_seconds() // 60)
