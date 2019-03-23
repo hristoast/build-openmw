@@ -32,11 +32,11 @@ Both of the above build everything needed to run OpenMW without creating any pac
 
 ## Advanced
 
-### Build TES3MP
+### Build TES3MP (experimental)
 
-To build the `0.6.3` branch of TES3MP:
+To build the `0.7.0` branch of TES3MP:
 
-    build-openmw -MP -b 0.6.3
+    build-openmw -MP -b 0.7.0
 
 ### Build a portable TES3MP inside a docker container
 
