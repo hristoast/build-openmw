@@ -164,6 +164,33 @@ def build_library(libname, check_file=None, clone_dest=None, cmake=True,
             emit_log("{} installed successfully".format(libname))
 
 
+def format_openmw_cmake_args(bullet_path: str, osg_path: str) -> list:
+    return [
+        "-DOPENTHREADS_INCLUDE_DIR={}/include".format(osg_path),
+        "-DOPENTHREADS_LIBRARY={}/lib64/libOpenThreads.so".format(osg_path),
+        "-DOSG_INCLUDE_DIR={}/include".format(osg_path),
+        "-DOSG_LIBRARY={}/lib64/libosg.so".format(osg_path),
+        "-DOSGANIMATION_INCLUDE_DIR={}/include".format(osg_path),
+        "-DOSGANIMATION_LIBRARY={}/lib64/libosgAnimation.so".format(osg_path),
+        "-DOSGDB_INCLUDE_DIR={}/include".format(osg_path),
+        "-DOSGDB_LIBRARY={}/lib64/libosgDB.so".format(osg_path),
+        "-DOSGFX_INCLUDE_DIR={}/include".format(osg_path),
+        "-DOSGFX_LIBRARY={}/lib64/libosgFX.so".format(osg_path),
+        "-DOSGGA_INCLUDE_DIR={}/include".format(osg_path),
+        "-DOSGGA_LIBRARY={}/lib64/libosgGA.so".format(osg_path),
+        "-DOSGPARTICLE_INCLUDE_DIR={}/include".format(osg_path),
+        "-DOSGPARTICLE_LIBRARY={}/lib64/libosgParticle.so".format(osg_path),
+        "-DOSGTEXT_INCLUDE_DIR={}/include".format(osg_path),
+        "-DOSGTEXT_LIBRARY={}/lib64/libosgText.so".format(osg_path),
+        "-DOSGUTIL_INCLUDE_DIR={}/include".format(osg_path),
+        "-DOSGUTIL_LIBRARY={}/lib64/libosgUtil.so".format(osg_path),
+        "-DOSGVIEWER_INCLUDE_DIR={}/include".format(osg_path),
+        "-DOSGVIEWER_LIBRARY={}/lib64/libosgViewer.so".format(osg_path),
+        "-DBullet_INCLUDE_DIR={}/include/bullet".format(bullet_path),
+        "-DBullet_BulletCollision_LIBRARY={}/lib/libBulletCollision.so".format(bullet_path),
+        "-DBullet_LinearMath_LIBRARY={}/lib/libLinearMath.so".format(bullet_path)]
+
+
 def get_distro() -> tuple:
     """Try to run 'lsb_release -d' and return the output."""
     return execute_shell(["lsb_release", "-d"])[1]
@@ -751,57 +778,11 @@ def main() -> None:
             bullet = os.path.join(INSTALL_PREFIX, "bullet")
             if os.getenv("TES3MP_FORGE"):
                 osg = "/usr/local"
-                full_args = [
-                    "-DOPENTHREADS_INCLUDE_DIR={}/include".format(osg),
-                    "-DOPENTHREADS_LIBRARY={}/lib64/libOpenThreads.so".format(osg),
-                    "-DOSG_INCLUDE_DIR={}/include".format(osg),
-                    "-DOSG_LIBRARY={}/lib64/libosg.so".format(osg),
-                    "-DOSGANIMATION_INCLUDE_DIR={}/include".format(osg),
-                    "-DOSGANIMATION_LIBRARY={}/lib64/libosgAnimation.so".format(osg),
-                    "-DOSGDB_INCLUDE_DIR={}/include".format(osg),
-                    "-DOSGDB_LIBRARY={}/lib64/libosgDB.so".format(osg),
-                    "-DOSGFX_INCLUDE_DIR={}/include".format(osg),
-                    "-DOSGFX_LIBRARY={}/lib64/libosgFX.so".format(osg),
-                    "-DOSGGA_INCLUDE_DIR={}/include".format(osg),
-                    "-DOSGGA_LIBRARY={}/lib64/libosgGA.so".format(osg),
-                    "-DOSGPARTICLE_INCLUDE_DIR={}/include".format(osg),
-                    "-DOSGPARTICLE_LIBRARY={}/lib64/libosgParticle.so".format(osg),
-                    "-DOSGTEXT_INCLUDE_DIR={}/include".format(osg),
-                    "-DOSGTEXT_LIBRARY={}/lib64/libosgText.so".format(osg),
-                    "-DOSGUTIL_INCLUDE_DIR={}/include".format(osg),
-                    "-DOSGUTIL_LIBRARY={}/lib64/libosgUtil.so".format(osg),
-                    "-DOSGVIEWER_INCLUDE_DIR={}/include".format(osg),
-                    "-DOSGVIEWER_LIBRARY={}/lib64/libosgViewer.so".format(osg),
-                    "-DBullet_INCLUDE_DIR={}/include/bullet".format(bullet),
-                    "-DBullet_BulletCollision_LIBRARY={}/lib/libBulletCollision.so".format(bullet),
-                    "-DBullet_LinearMath_LIBRARY={}/lib/libLinearMath.so".format(bullet)]
+                full_args = format_openmw_cmake_args(bullet, osg)
 
             else:
                 osg = os.path.join(INSTALL_PREFIX, "osg-openmw")
-                full_args = [
-                    "-DOPENTHREADS_INCLUDE_DIR={}/include".format(osg),
-                    "-DOPENTHREADS_LIBRARY={}/lib64/libOpenThreads.so".format(osg),
-                    "-DOSG_INCLUDE_DIR={}/include".format(osg),
-                    "-DOSG_LIBRARY={}/lib64/libosg.so".format(osg),
-                    "-DOSGANIMATION_INCLUDE_DIR={}/include".format(osg),
-                    "-DOSGANIMATION_LIBRARY={}/lib64/libosgAnimation.so".format(osg),
-                    "-DOSGDB_INCLUDE_DIR={}/include".format(osg),
-                    "-DOSGDB_LIBRARY={}/lib64/libosgDB.so".format(osg),
-                    "-DOSGFX_INCLUDE_DIR={}/include".format(osg),
-                    "-DOSGFX_LIBRARY={}/lib64/libosgFX.so".format(osg),
-                    "-DOSGGA_INCLUDE_DIR={}/include".format(osg),
-                    "-DOSGGA_LIBRARY={}/lib64/libosgGA.so".format(osg),
-                    "-DOSGPARTICLE_INCLUDE_DIR={}/include".format(osg),
-                    "-DOSGPARTICLE_LIBRARY={}/lib64/libosgParticle.so".format(osg),
-                    "-DOSGTEXT_INCLUDE_DIR={}/include".format(osg),
-                    "-DOSGTEXT_LIBRARY={}/lib64/libosgText.so".format(osg),
-                    "-DOSGUTIL_INCLUDE_DIR={}/include".format(osg),
-                    "-DOSGUTIL_LIBRARY={}/lib64/libosgUtil.so".format(osg),
-                    "-DOSGVIEWER_INCLUDE_DIR={}/include".format(osg),
-                    "-DOSGVIEWER_LIBRARY={}/lib64/libosgViewer.so".format(osg),
-                    "-DBullet_INCLUDE_DIR={}/include/bullet".format(bullet),
-                    "-DBullet_BulletCollision_LIBRARY={}/lib/libBulletCollision.so".format(bullet),
-                    "-DBullet_LinearMath_LIBRARY={}/lib/libLinearMath.so".format(bullet)]
+                full_args = format_openmw_cmake_args(bullet, osg)
             for arg in full_args:
                 tes3mp_cmake_args.append(arg)
 
