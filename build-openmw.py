@@ -16,6 +16,8 @@ UNSHIELD_VERSION = "1.4.2"
 CALLFF_VERSION = "origin/master"
 RAKNET_VERSION = "origin/master"
 
+TES3MP_CORESCRIPTS_VERSION = "0.7.0"
+
 CPUS = os.cpu_count() + 1
 INSTALL_PREFIX = os.path.join("/", "opt", "morrowind")
 DESC = "Build OpenMW for your system, install it all to {}.  Also builds OSG, libBullet, Unshield, and MyGUI, and links against those builds.".format(INSTALL_PREFIX)
@@ -489,6 +491,7 @@ def parse_argv() -> None:
     options.add_argument("-U", "--update", action="store_true", help="Try to update this script.")
     options.add_argument("-MP", "--tes3mp", action="store_true", help="Build TES3MP.")
     options.add_argument("--tes3mp-server-only", action="store_true", help="Build TES3MP (server only.)")
+    options.add_argument("--with-corescripts", action="store_true", help="Also clone down the CoreScripts repo.")
     options.add_argument("-v", "--verbose", action="store_true", help="Enable verbose output.")
 
     return parser.parse_args()
@@ -521,6 +524,7 @@ def main() -> None:
     tes3mp = False
     tes3mp_serveronly = False
     verbose = False
+    with_corescripts = False
     sha = None
     tag = None
     branch = "master"
@@ -618,6 +622,8 @@ def main() -> None:
         verbose = parsed.verbose
         logging.getLogger().setLevel(logging.DEBUG)
         emit_log("Verbose output enabled")
+    if parsed.with_corescripts:
+        with_corescripts = True
     if parsed.branch:
         branch = rev = parsed.branch
         if '/' not in branch:
@@ -813,6 +819,33 @@ def main() -> None:
 
         if make_pkg:
             make_portable_package(tes3mp, distro, force=force_pkg, out_dir=out_dir)
+
+        if with_corescripts:
+            scripts_dir = os.path.join(INSTALL_PREFIX, tes3mp, "etc", "openmw", "server")
+            tes3mp_etc_dir = os.path.join(INSTALL_PREFIX, tes3mp, "etc", "openmw")
+
+            os.chdir(tes3mp_etc_dir)
+            execute_shell(["git", "clone", "https://github.com/TES3MP/CoreScripts.git", "server"], verbose=verbose)
+
+            os.chdir("server")
+            execute_shell(["git", "checkout", TES3MP_CORESCRIPTS_VERSION], verbose=verbose)
+            emit_log("Server core scripts installed at: " + scripts_dir)
+
+            orig_cfg = []
+            new_cfg = []
+            os.chdir(tes3mp_etc_dir)
+            with open("tes3mp-server-default.cfg", 'r') as f:
+                orig_cfg = f.readlines()
+
+            for line in orig_cfg:
+                if "home = ./server" in line:
+                    new_cfg.append("home = " + scripts_dir + "\n")
+                else:
+                    new_cfg.append(line)
+
+            with open("tes3mp-server-default.cfg", 'w') as f:
+                for line in new_cfg:
+                    f.write(line)
 
     else:
         # OPENMW
