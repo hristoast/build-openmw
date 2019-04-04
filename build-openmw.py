@@ -26,7 +26,7 @@ OUT_DIR = os.getenv("HOME")
 SRC_DIR = os.path.join(INSTALL_PREFIX, "src")
 
 ARCH_PKGS = "".split()
-DEBIAN_PKGS = "git libopenal-dev libsdl2-dev libqt5-dev libfreetype6-dev libboost-filesystem-dev libboost-thread-dev libboost-program-options-dev libboost-system-dev libavcodec-dev libavformat-dev libavutil-dev libswscale-dev cmake build-essential libqt5-opengl-dev".split()
+DEBIAN_PKGS = "git libopenal-dev libsdl2-dev qt5-default libfreetype6-dev libboost-filesystem-dev libboost-thread-dev libboost-program-options-dev libboost-system-dev libavcodec-dev libavformat-dev libavutil-dev libswscale-dev cmake build-essential libqt5opengl5-dev".split()
 REDHAT_PKGS = "openal-devel SDL2-devel qt5-devel boost-filesystem git boost-thread boost-program-options boost-system ffmpeg-devel ffmpeg-libs gcc-c++ tinyxml-devel cmake".split()
 UBUNTU_PKGS = ["libfreetype6-dev", "libbz2-dev", "liblzma-dev"] + DEBIAN_PKGS
 VOID_PKGS = "boost-devel cmake ffmpeg-devel freetype-devel gcc git libavformat libavutil libmygui-devel libopenal-devel libopenjpeg2-devel libswresample libswscale libtxc_dxtn liblzma-devel libXt-devel make nasm ois-devel pkg-config python-devel python3-devel qt5-devel SDL2-devel zlib-devel".split()
@@ -214,7 +214,7 @@ def get_repo_sha(src_dir: str, repo="openmw", rev=None, pull=True, verbose=False
     return out.decode().strip()
 
 
-def make_portable_package(pkgname: str, distro, force=False, out_dir=OUT_DIR) -> bool:
+def make_portable_package(pkgname: str, distro, force=False, out_dir=OUT_DIR, serveronly=False) -> bool:
 
     if not os.path.isdir(out_dir):
         emit_log("Out dir doesn't exist, creating it: " + out_dir)
@@ -236,20 +236,29 @@ def make_portable_package(pkgname: str, distro, force=False, out_dir=OUT_DIR) ->
     emit_log("Making: " + pkg_dir)
     os.makedirs(pkg_libs)
 
-    bins = (
-        os.path.join(SRC_DIR, "tes3mp", "build", "bsatool"),
-        os.path.join(SRC_DIR, "tes3mp", "build", "esmtool"),
-        os.path.join(SRC_DIR, "tes3mp", "build", "openmw-essimporter"),
-        os.path.join(SRC_DIR, "tes3mp", "build", "openmw-iniimporter"),
-        os.path.join(SRC_DIR, "tes3mp", "build", "openmw-launcher"),
-        os.path.join(SRC_DIR, "tes3mp", "build", "openmw-wizard"),
-        os.path.join(SRC_DIR, "tes3mp", "build", "settings-default.cfg"),
-        os.path.join(SRC_DIR, "tes3mp", "build", "tes3mp"),
-        os.path.join(SRC_DIR, "tes3mp", "build", "tes3mp-browser"),
-        os.path.join(SRC_DIR, "tes3mp", "build", "tes3mp-client-default.cfg"),
-        os.path.join(SRC_DIR, "tes3mp", "build", "tes3mp-server"),
-        os.path.join(SRC_DIR, "tes3mp", "build", "tes3mp-server-default.cfg"),
-        os.path.join(SRC_DIR, "tes3mp", "tes3mp-credits.md"))
+    if serveronly:
+        bins = (
+            os.path.join(SRC_DIR, "tes3mp", "build", "tes3mp-server"),
+            os.path.join(SRC_DIR, "tes3mp", "build", "tes3mp-server-default.cfg"),
+            os.path.join(SRC_DIR, "tes3mp", "AUTHORS.md"),
+            os.path.join(SRC_DIR, "tes3mp", "LICENSE"),
+            os.path.join(SRC_DIR, "tes3mp", "README.md"),
+            os.path.join(SRC_DIR, "tes3mp", "tes3mp-credits.md"))
+    else:
+        bins = (
+            os.path.join(SRC_DIR, "tes3mp", "build", "bsatool"),
+            os.path.join(SRC_DIR, "tes3mp", "build", "esmtool"),
+            os.path.join(SRC_DIR, "tes3mp", "build", "openmw-essimporter"),
+            os.path.join(SRC_DIR, "tes3mp", "build", "openmw-iniimporter"),
+            os.path.join(SRC_DIR, "tes3mp", "build", "openmw-launcher"),
+            os.path.join(SRC_DIR, "tes3mp", "build", "openmw-wizard"),
+            os.path.join(SRC_DIR, "tes3mp", "build", "settings-default.cfg"),
+            os.path.join(SRC_DIR, "tes3mp", "build", "tes3mp"),
+            os.path.join(SRC_DIR, "tes3mp", "build", "tes3mp-browser"),
+            os.path.join(SRC_DIR, "tes3mp", "build", "tes3mp-client-default.cfg"),
+            os.path.join(SRC_DIR, "tes3mp", "build", "tes3mp-server"),
+            os.path.join(SRC_DIR, "tes3mp", "build", "tes3mp-server-default.cfg"),
+            os.path.join(SRC_DIR, "tes3mp", "tes3mp-credits.md"))
 
     if os.getenv("TES3MP_FORGE"):
         # This is a build inside GrimKriegor's tes3mp-forge docker image
@@ -308,10 +317,11 @@ def make_portable_package(pkgname: str, distro, force=False, out_dir=OUT_DIR) ->
             "/usr/lib/x86_64-linux-gnu/libavcodec.so",
             "/usr/lib/x86_64-linux-gnu/libavformat.so",
             "/usr/lib/x86_64-linux-gnu/libavutil.so",
-            "/usr/lib/x86_64-linux-gnu/libboost_filesystem.so",
-            "/usr/lib/x86_64-linux-gnu/libboost_program_options.so",
-            "/usr/lib/x86_64-linux-gnu/libboost_system.so",
-            "/usr/lib/x86_64-linux-gnu/libboost_thread.so",
+            # TODO: These numbers are likely specific to Debian 9
+            "/usr/lib/x86_64-linux-gnu/libboost_filesystem.so.1.62.0",
+            "/usr/lib/x86_64-linux-gnu/libboost_program_options.so.1.62.0",
+            "/usr/lib/x86_64-linux-gnu/libboost_system.so.1.62.0",
+            "/usr/lib/x86_64-linux-gnu/libboost_thread.so.1.62.0",
             "/usr/lib/x86_64-linux-gnu/libswresample.so",
             "/usr/lib/x86_64-linux-gnu/libswscale.so",
             "/usr/lib/x86_64-linux-gnu/libSDL2.so",
@@ -320,11 +330,18 @@ def make_portable_package(pkgname: str, distro, force=False, out_dir=OUT_DIR) ->
             "/usr/lib/x86_64-linux-gnu/libopenal.so",
             "/usr/lib/x86_64-linux-gnu/libpng16.so")
 
-    if not os.getenv("TES3MP_FORGE"):
+    if serveronly:
         openmw_libs = (
             os.path.join(SRC_DIR, "bullet", "build", "src", "BulletCollision", "libBulletCollision.so.2.86"),
             os.path.join(SRC_DIR, "bullet", "build", "src", "LinearMath", "libLinearMath.so.2.86"),
-            os.path.join(SRC_DIR, "mygui", "build", "lib", "libMyGUIEngine.so.3.2.3"),
+            os.path.join(SRC_DIR, "mygui", "build", "lib", "libMyGUIEngine.so.3.4.0"),
+            os.path.join(SRC_DIR, "unshield", "build", "lib", "libunshield.so"))
+
+    else:
+        openmw_libs = (
+            os.path.join(SRC_DIR, "bullet", "build", "src", "BulletCollision", "libBulletCollision.so.2.86"),
+            os.path.join(SRC_DIR, "bullet", "build", "src", "LinearMath", "libLinearMath.so.2.86"),
+            os.path.join(SRC_DIR, "mygui", "build", "lib", "libMyGUIEngine.so.3.4.0"),
             os.path.join(SRC_DIR, "unshield", "build", "lib", "libunshield.so"),
             os.path.join(SRC_DIR, "osg-openmw", "build", "lib", "libOpenThreads.so.20"),
             os.path.join(SRC_DIR, "osg-openmw", "build", "lib", "libosg.so.130"),
@@ -367,11 +384,11 @@ def make_portable_package(pkgname: str, distro, force=False, out_dir=OUT_DIR) ->
         os.path.join(SRC_DIR, "tes3mp", "build", "resources"),
         os.path.join(pkg_dir, "resources"))
 
-    if os.getenv("TES3MP_FORGE"):
-        emit_log("Copying osgPlugins-3.4.1")
+    if serveronly:
+        emit_log("Copying osgPlugins-3.4.0")
         shutil.copytree(
-            os.path.join("/usr/local/lib64/osgPlugins-3.4.1"),
-            os.path.join(pkg_libs, "osgPlugins-3.4.1"))
+            os.path.join("/usr/lib/x86_64-linux-gnu/osgPlugins-3.4.0"),
+            os.path.join(pkg_libs, "osgPlugins-3.4.0"))
     else:
         emit_log("Copying osgPlugins-3.4.1")
         shutil.copytree(
@@ -765,13 +782,19 @@ def main() -> None:
         tes3mp_binary = "tes3mp"
         tes3mp_cmake_args = ["-Wno-dev", "-DCMAKE_BUILD_TYPE=Release", "-DBUILD_OPENCS=OFF",
                              "-DCMAKE_CXX_STANDARD=14", '-DCMAKE_CXX_FLAGS=\"-std=c++14\"',
-                             "-DDESIRED_QT_VERSION=5", '-DCallFF_INCLUDES={}/callff/include'.format(SRC_DIR),
+                             "-DDESIRED_QT_VERSION=5",
+                             # CMake Warning:
+                             #   Manually-specified variables were not used by the project:
+                             #     CallFF_INCLUDES
+                             #     CallFF_LIBRARY
+                             '-DCallFF_INCLUDES={}/callff/include'.format(SRC_DIR),
                              "-DCallFF_LIBRARY={}/callff/build/src/libcallff.a".format(SRC_DIR),
                              "-DRakNet_INCLUDES={}/raknet/include".format(SRC_DIR),
                              "-DRakNet_LIBRARY_DEBUG={}/raknet/build/lib/libRakNetLibStatic.a".format(SRC_DIR),
                              "-DRakNet_LIBRARY_RELEASE={}/raknet/build/lib/libRakNetLibStatic.a".format(SRC_DIR)]
 
         if tes3mp_serveronly:
+            # Link against the system Bullet and OSB
             tes3mp_binary = "tes3mp-server"
             server_args = ["-DBUILD_OPENMW_MP=ON", "-DBUILD_BROWSER=OFF",
                            "-DBUILD_BSATOOL=OFF", "-DBUILD_ESMTOOL=OFF",
@@ -781,6 +804,7 @@ def main() -> None:
             for arg in server_args:
                 tes3mp_cmake_args.append(arg)
         else:
+            # Link against our built Bullet and OSB
             bullet = os.path.join(INSTALL_PREFIX, "bullet")
             if os.getenv("TES3MP_FORGE"):
                 osg = "/usr/local"
@@ -808,17 +832,19 @@ def main() -> None:
                       version=rev)
 
         tes3mp_sha = get_repo_sha(src_dir, repo="tes3mp", rev=rev, pull=pull, verbose=verbose)
+        tes3mp = '-'.join((tes3mp, tes3mp_sha))
 
         if make_install:
             os.chdir(install_prefix)
             if str(tes3mp_sha) not in tes3mp:
                 os.rename("tes3mp", "tes3mp-{}".format(tes3mp_sha))
+                # tes3mp = '-'.join((tes3mp, tes3mp_sha))
             if os.path.islink("tes3mp"):
                 os.remove("tes3mp")
             os.symlink("tes3mp-" + tes3mp_sha, "tes3mp")
 
         if make_pkg:
-            make_portable_package(tes3mp, distro, force=force_pkg, out_dir=out_dir)
+            make_portable_package(tes3mp, distro, force=force_pkg, out_dir=out_dir, serveronly=tes3mp_serveronly)
 
         if with_corescripts:
             scripts_dir = os.path.join(INSTALL_PREFIX, tes3mp, "etc", "openmw", "server")
