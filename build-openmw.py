@@ -838,7 +838,6 @@ def main() -> None:
             os.chdir(install_prefix)
             if str(tes3mp_sha) not in tes3mp:
                 os.rename("tes3mp", "tes3mp-{}".format(tes3mp_sha))
-                # tes3mp = '-'.join((tes3mp, tes3mp_sha))
             if os.path.islink("tes3mp"):
                 os.remove("tes3mp")
             os.symlink("tes3mp-" + tes3mp_sha, "tes3mp")
