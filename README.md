@@ -22,11 +22,11 @@ Run `build-openmw.py` with no arguments to get everything you need - it will pot
 
 Pass the `--help` argument to see advanced usage options.  For a local install, use something like this:
 
-    build-openmw -n -v
+    build-openmw --make-install --verbose
 
 If this isn't your first run, you can skip installing packages via your package manager like this:
 
-    build-openmw -n -S -v
+    build-openmw --make-install --skip-install-pkgs --verbose
 
 Both of the above build everything needed to run OpenMW without creating any package.
 
@@ -52,7 +52,7 @@ Uses GrimKriegor's excellent `tes3mp-forge` build container
 
 To build the `0.43` release of OpenMW:
 
-    build-openmw -t openmw-0.43.0
+    build-openmw --tag openmw-0.43.0
 
 Any valid git tag can be built this way.
 
@@ -64,7 +64,7 @@ This script allows one to easily build any git rev.  If you want to build a bran
 
 Then, pass your branch as an argument:
 
-    build-openmw -n -S -b anyoldname3/osgshadow-test-vdsm
+    build-openmw --make-install --skip-install-pkgs --branch anyoldname3/osgshadow-test-vdsm
 
 This will build and not package the tip of the `osgshadow-test-vdsm` branch from Anyoldname3's fork.
 
@@ -81,3 +81,5 @@ If for some reason you want to rebuild any dependency (maybe osg-openmw has an u
 ## Why?
 
 OpenMW has several dependencies that are at various stages of release on any given GNU/Linux distribution.  This script tries to simplify the process of running OpenMW by building and bundling what have been, in my experience, the most widely varying of these.
+
+Nowadays, even with wide availablility of all dependencies, it's still nice to have an automated and reproducible way of doing the build process.
