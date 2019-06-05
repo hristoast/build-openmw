@@ -20,18 +20,20 @@ TES3MP_CORESCRIPTS_VERSION = "0.7.0"
 
 CPUS = os.cpu_count() + 1
 INSTALL_PREFIX = os.path.join("/", "opt", "morrowind")
-DESC = "Build OpenMW for your system, install it all to {}.  Also builds OSG, libBullet, Unshield, and MyGUI, and links against those builds.".format(INSTALL_PREFIX)
-LOGFMT = '%(asctime)s | %(message)s'
+DESC = "Build OpenMW for your system, install it all to {}.  Also builds OSG, libBullet, Unshield, and MyGUI, and links against those builds.".format(
+    INSTALL_PREFIX
+)
+LOGFMT = "%(asctime)s | %(message)s"
 OUT_DIR = os.getenv("HOME")
 SRC_DIR = os.path.join(INSTALL_PREFIX, "src")
 
 ARCH_PKGS = "".split()
-DEBIAN_PKGS = "git libopenal-dev libsdl2-dev qt5-default libfreetype6-dev libboost-filesystem-dev libboost-thread-dev libboost-program-options-dev libboost-system-dev libavcodec-dev libavformat-dev libavutil-dev libswscale-dev cmake build-essential libqt5opengl5-dev".split()
+DEBIAN_PKGS = "git libopenal-dev libsdl2-dev qt5-default libfreetype6-dev libboost-filesystem-dev libboost-iostreams1.62-dev libboost-thread-dev libboost-program-options-dev libboost-system-dev libavcodec-dev libavformat-dev libavutil-dev libswscale-dev cmake build-essential libqt5opengl5-dev".split()
 REDHAT_PKGS = "openal-devel SDL2-devel qt5-devel boost-filesystem git boost-thread boost-program-options boost-system ffmpeg-devel ffmpeg-libs gcc-c++ tinyxml-devel cmake".split()
 UBUNTU_PKGS = ["libfreetype6-dev", "libbz2-dev", "liblzma-dev"] + DEBIAN_PKGS
 VOID_PKGS = "boost-devel cmake ffmpeg-devel freetype-devel gcc git libavformat libavutil libmygui-devel libopenal-devel libopenjpeg2-devel libswresample libswscale libtxc_dxtn liblzma-devel libXt-devel make nasm ois-devel pkg-config python-devel python3-devel qt5-devel SDL2-devel zlib-devel".split()
 
-PROG = 'build-openmw'
+PROG = "build-openmw"
 VERSION = "1.6"
 
 
@@ -61,7 +63,7 @@ def ensure_dir(path: str, create=True):
                 emit_log("Can't write '{}', trying with sudo...".format(path))
                 execute_shell(["sudo", "mkdir", path])[1]
                 emit_log("Chowning '{}' so sudo isn't needed anymore...".format(path))
-                execute_shell(["sudo", "chown", '{}:'.format(os.getlogin()), path])[1]
+                execute_shell(["sudo", "chown", "{}:".format(os.getlogin()), path])[1]
             emit_log("{} now exists".format(path))
         else:
             emit_log("Does {0} exist? {1}".format(path), os.path.isdir(path))
@@ -77,29 +79,46 @@ def error_and_die(msg: str) -> SystemExit:
 
 def execute_shell(cli_args: list, env=None, verbose=False) -> tuple:
     """Small convenience wrapper around subprocess.Popen."""
-    emit_log("EXECUTING: " + ' '.join(cli_args), level=logging.DEBUG)
+    emit_log("EXECUTING: " + " ".join(cli_args), level=logging.DEBUG)
     if verbose:
         p = subprocess.Popen(cli_args, env=env)
     else:
-        p = subprocess.Popen(cli_args, stderr=subprocess.PIPE,
-                             stdout=subprocess.PIPE, env=env)
+        p = subprocess.Popen(
+            cli_args, stderr=subprocess.PIPE, stdout=subprocess.PIPE, env=env
+        )
     c = p.communicate()
     return p.returncode, c
 
 
-def build_library(libname, check_file=None, clone_dest=None, cmake=True,
-                  cmake_args=None, cmake_target="..", cpus=None, env=None,
-                  force=False, install_prefix=INSTALL_PREFIX, git_url=None,
-                  make_install=True, patch=None, quiet=False, src_dir=SRC_DIR,
-                  verbose=False, version='master'):
-
+def build_library(
+    libname,
+    check_file=None,
+    clone_dest=None,
+    cmake=True,
+    cmake_args=None,
+    cmake_target="..",
+    cpus=None,
+    env=None,
+    force=False,
+    install_prefix=INSTALL_PREFIX,
+    git_url=None,
+    make_install=True,
+    patch=None,
+    quiet=False,
+    src_dir=SRC_DIR,
+    verbose=False,
+    version="master",
+):
     def _git_clean_src():
         os.chdir(os.path.join(src_dir, clone_dest))
         emit_log("{} executing source clean".format(libname))
         execute_shell(["git", "checkout", "--", "."], verbose=verbose)
         execute_shell(["git", "clean", "-df"], verbose=verbose)
-        emit_log("{} resetting source to the desired rev ({rev})".format(
-            libname, rev=version))
+        emit_log(
+            "{} resetting source to the desired rev ({rev})".format(
+                libname, rev=version
+            )
+        )
         execute_shell(["git", "checkout", version], verbose=verbose)
         execute_shell(["git", "reset", "--hard", version], verbose=verbose)
 
@@ -139,27 +158,29 @@ def build_library(libname, check_file=None, clone_dest=None, cmake=True,
             os.chdir(build_dir)
 
             emit_log("{} running cmake ...".format(libname))
-            build_cmd = ["cmake", "-DCMAKE_INSTALL_PREFIX={}/{}"
-                         .format(install_prefix, libname)]
+            build_cmd = [
+                "cmake",
+                "-DCMAKE_INSTALL_PREFIX={}/{}".format(install_prefix, libname),
+            ]
             if cmake_args:
                 build_cmd += cmake_args
-            build_cmd += [cmake_target, ]
+            build_cmd += [cmake_target]
             exitcode, output = execute_shell(build_cmd, env=env, verbose=verbose)
             if exitcode != 0:
                 emit_log(output[1])
                 error_and_die("cmake exited nonzero!")
 
         emit_log("{} running make (this will take a while) ...".format(libname))
-        exitcode, output = execute_shell(["make", "-j{}".format(cpus)],
-                                         env=env, verbose=verbose)
+        exitcode, output = execute_shell(
+            ["make", "-j{}".format(cpus)], env=env, verbose=verbose
+        )
         if exitcode != 0:
             emit_log(output[1])
             error_and_die("make exited nonzero!")
 
         if make_install:
             emit_log("{} running make install ...".format(libname))
-            out, err = execute_shell(["make", "install"],
-                                     env=env, verbose=verbose)[1]
+            out, err = execute_shell(["make", "install"], env=env, verbose=verbose)[1]
             if err:
                 error_and_die(err.decode("utf-8"))
 
@@ -189,8 +210,11 @@ def format_openmw_cmake_args(bullet_path: str, osg_path: str) -> list:
         "-DOSGVIEWER_INCLUDE_DIR={}/include".format(osg_path),
         "-DOSGVIEWER_LIBRARY={}/lib64/libosgViewer.so".format(osg_path),
         "-DBullet_INCLUDE_DIR={}/include/bullet".format(bullet_path),
-        "-DBullet_BulletCollision_LIBRARY={}/lib/libBulletCollision.so".format(bullet_path),
-        "-DBullet_LinearMath_LIBRARY={}/lib/libLinearMath.so".format(bullet_path)]
+        "-DBullet_BulletCollision_LIBRARY={}/lib/libBulletCollision.so".format(
+            bullet_path
+        ),
+        "-DBullet_LinearMath_LIBRARY={}/lib/libLinearMath.so".format(bullet_path),
+    ]
 
 
 def get_distro() -> tuple:
@@ -198,7 +222,9 @@ def get_distro() -> tuple:
     return execute_shell(["lsb_release", "-d"])[1]
 
 
-def get_repo_sha(src_dir: str, repo="openmw", rev=None, pull=True, verbose=False) -> str:
+def get_repo_sha(
+    src_dir: str, repo="openmw", rev=None, pull=True, verbose=False
+) -> str:
     try:
         os.chdir(os.path.join(src_dir, repo))
     except FileNotFoundError:
@@ -214,7 +240,9 @@ def get_repo_sha(src_dir: str, repo="openmw", rev=None, pull=True, verbose=False
     return out.decode().strip()
 
 
-def make_portable_package(pkgname: str, distro, force=False, out_dir=OUT_DIR, serveronly=False) -> bool:
+def make_portable_package(
+    pkgname: str, distro, force=False, out_dir=OUT_DIR, serveronly=False
+) -> bool:
 
     if not os.path.isdir(out_dir):
         emit_log("Out dir doesn't exist, creating it: " + out_dir)
@@ -243,7 +271,8 @@ def make_portable_package(pkgname: str, distro, force=False, out_dir=OUT_DIR, se
             os.path.join(SRC_DIR, "tes3mp", "AUTHORS.md"),
             os.path.join(SRC_DIR, "tes3mp", "LICENSE"),
             os.path.join(SRC_DIR, "tes3mp", "README.md"),
-            os.path.join(SRC_DIR, "tes3mp", "tes3mp-credits.md"))
+            os.path.join(SRC_DIR, "tes3mp", "tes3mp-credits.md"),
+        )
     else:
         bins = (
             os.path.join(SRC_DIR, "tes3mp", "build", "bsatool"),
@@ -258,7 +287,8 @@ def make_portable_package(pkgname: str, distro, force=False, out_dir=OUT_DIR, se
             os.path.join(SRC_DIR, "tes3mp", "build", "tes3mp-client-default.cfg"),
             os.path.join(SRC_DIR, "tes3mp", "build", "tes3mp-server"),
             os.path.join(SRC_DIR, "tes3mp", "build", "tes3mp-server-default.cfg"),
-            os.path.join(SRC_DIR, "tes3mp", "tes3mp-credits.md"))
+            os.path.join(SRC_DIR, "tes3mp", "tes3mp-credits.md"),
+        )
 
     if os.getenv("TES3MP_FORGE"):
         # This is a build inside GrimKriegor's tes3mp-forge docker image
@@ -288,11 +318,22 @@ def make_portable_package(pkgname: str, distro, force=False, out_dir=OUT_DIR, se
             "/usr/lib/x86_64-linux-gnu/libSDL2-2.0.so.0",
             "/usr/lib/x86_64-linux-gnu/libopenal.so",
             "/usr/lib/x86_64-linux-gnu/libluajit-5.1.so.2",
-            "/usr/lib/x86_64-linux-gnu/libpng12.so.0")
+            "/usr/lib/x86_64-linux-gnu/libpng12.so.0",
+        )
         openmw_libs = (
-            os.path.join(SRC_DIR, "bullet", "build", "src", "BulletCollision", "libBulletCollision.so.2.86"),
-            os.path.join(SRC_DIR, "bullet", "build", "src", "LinearMath", "libLinearMath.so.2.86"),
-            os.path.join(SRC_DIR, "unshield", "build", "lib", "libunshield.so"))
+            os.path.join(
+                SRC_DIR,
+                "bullet",
+                "build",
+                "src",
+                "BulletCollision",
+                "libBulletCollision.so.2.86",
+            ),
+            os.path.join(
+                SRC_DIR, "bullet", "build", "src", "LinearMath", "libLinearMath.so.2.86"
+            ),
+            os.path.join(SRC_DIR, "unshield", "build", "lib", "libunshield.so"),
+        )
 
     elif "Void" in distro:
         system_libs = (
@@ -309,7 +350,8 @@ def make_portable_package(pkgname: str, distro, force=False, out_dir=OUT_DIR, se
             "/usr/lib/libbz2.so",
             "/usr/lib/libopenal.so",
             "/usr/lib/libluajit-5.1.so",
-            "/usr/lib/libpng16.so")
+            "/usr/lib/libpng16.so",
+        )
 
     # This part is totally untested
     elif "Ubuntu" in distro or "Debian in distro":
@@ -328,36 +370,62 @@ def make_portable_package(pkgname: str, distro, force=False, out_dir=OUT_DIR, se
             "/usr/lib/x86_64-linux-gnu/libbz2.so",
             "/usr/lib/x86_64-linux-gnu/libluajit-5.1.so",
             "/usr/lib/x86_64-linux-gnu/libopenal.so",
-            "/usr/lib/x86_64-linux-gnu/libpng16.so")
+            "/usr/lib/x86_64-linux-gnu/libpng16.so",
+        )
 
     if serveronly:
         openmw_libs = (
-            os.path.join(SRC_DIR, "bullet", "build", "src", "BulletCollision", "libBulletCollision.so.2.86"),
-            os.path.join(SRC_DIR, "bullet", "build", "src", "LinearMath", "libLinearMath.so.2.86"),
+            os.path.join(
+                SRC_DIR,
+                "bullet",
+                "build",
+                "src",
+                "BulletCollision",
+                "libBulletCollision.so.2.86",
+            ),
+            os.path.join(
+                SRC_DIR, "bullet", "build", "src", "LinearMath", "libLinearMath.so.2.86"
+            ),
             os.path.join(SRC_DIR, "mygui", "build", "lib", "libMyGUIEngine.so.3.4.0"),
-            os.path.join(SRC_DIR, "unshield", "build", "lib", "libunshield.so"))
+            os.path.join(SRC_DIR, "unshield", "build", "lib", "libunshield.so"),
+        )
 
     else:
         openmw_libs = (
-            os.path.join(SRC_DIR, "bullet", "build", "src", "BulletCollision", "libBulletCollision.so.2.86"),
-            os.path.join(SRC_DIR, "bullet", "build", "src", "LinearMath", "libLinearMath.so.2.86"),
+            os.path.join(
+                SRC_DIR,
+                "bullet",
+                "build",
+                "src",
+                "BulletCollision",
+                "libBulletCollision.so.2.86",
+            ),
+            os.path.join(
+                SRC_DIR, "bullet", "build", "src", "LinearMath", "libLinearMath.so.2.86"
+            ),
             os.path.join(SRC_DIR, "mygui", "build", "lib", "libMyGUIEngine.so.3.4.0"),
             os.path.join(SRC_DIR, "unshield", "build", "lib", "libunshield.so"),
             os.path.join(SRC_DIR, "osg-openmw", "build", "lib", "libOpenThreads.so.20"),
             os.path.join(SRC_DIR, "osg-openmw", "build", "lib", "libosg.so.130"),
-            os.path.join(SRC_DIR, "osg-openmw", "build", "lib", "libosgAnimation.so.130"),
+            os.path.join(
+                SRC_DIR, "osg-openmw", "build", "lib", "libosgAnimation.so.130"
+            ),
             os.path.join(SRC_DIR, "osg-openmw", "build", "lib", "libosgDB.so.130"),
             os.path.join(SRC_DIR, "osg-openmw", "build", "lib", "libosgFX.so.130"),
             os.path.join(SRC_DIR, "osg-openmw", "build", "lib", "libosgGA.so.130"),
-            os.path.join(SRC_DIR, "osg-openmw", "build", "lib", "libosgParticle.so.130"),
+            os.path.join(
+                SRC_DIR, "osg-openmw", "build", "lib", "libosgParticle.so.130"
+            ),
             os.path.join(SRC_DIR, "osg-openmw", "build", "lib", "libosgText.so.130"),
             os.path.join(SRC_DIR, "osg-openmw", "build", "lib", "libosgUtil.so.130"),
             os.path.join(SRC_DIR, "osg-openmw", "build", "lib", "libosgViewer.so.130"),
-            os.path.join(SRC_DIR, "osg-openmw", "build", "lib", "libosgWidget.so.130"))
+            os.path.join(SRC_DIR, "osg-openmw", "build", "lib", "libosgWidget.so.130"),
+        )
 
     tes3mp_libs = (
         os.path.join(SRC_DIR, "callff", "build", "src", "libcallff.a"),
-        os.path.join(SRC_DIR, "raknet", "build", "lib", "libRakNetLibStatic.a"))
+        os.path.join(SRC_DIR, "raknet", "build", "lib", "libRakNetLibStatic.a"),
+    )
 
     emit_log("Copying binaries")
     for b in bins:
@@ -382,18 +450,21 @@ def make_portable_package(pkgname: str, distro, force=False, out_dir=OUT_DIR, se
     emit_log("Copying resources")
     shutil.copytree(
         os.path.join(SRC_DIR, "tes3mp", "build", "resources"),
-        os.path.join(pkg_dir, "resources"))
+        os.path.join(pkg_dir, "resources"),
+    )
 
     if serveronly:
         emit_log("Copying osgPlugins-3.4.0")
         shutil.copytree(
             os.path.join("/usr/lib/x86_64-linux-gnu/osgPlugins-3.4.0"),
-            os.path.join(pkg_libs, "osgPlugins-3.4.0"))
+            os.path.join(pkg_libs, "osgPlugins-3.4.0"),
+        )
     else:
         emit_log("Copying osgPlugins-3.4.1")
         shutil.copytree(
             os.path.join(SRC_DIR, "osg-openmw", "build", "lib", "osgPlugins-3.4.1"),
-            os.path.join(pkg_libs, "osgPlugins-3.4.1"))
+            os.path.join(pkg_libs, "osgPlugins-3.4.1"),
+        )
 
     _prev = os.getcwd()
     os.chdir(_tmpdir)
@@ -412,31 +483,31 @@ def install_packages(distro: str, **kwargs) -> bool:
     quiet = kwargs.pop("quiet", "")
     verbose = kwargs.pop("verbose", "")
 
-    emit_log("Attempting to install dependency packages, please enter your sudo password as needed...",
-             quiet=quiet)
+    emit_log(
+        "Attempting to install dependency packages, please enter your sudo password as needed...",
+        quiet=quiet,
+    )
     user_uid = os.getuid()
-    if 'void' in distro.lower():
+    if "void" in distro.lower():
         emit_log("Distro detected as 'Void Linux'")
         cmd = ["xbps-install", "--yes"] + VOID_PKGS
         if user_uid > 0:
             cmd = ["sudo"] + cmd
         out, err = execute_shell(cmd, verbose=verbose)[1]
-    elif 'arch' in distro.lower():
+    elif "arch" in distro.lower():
         emit_log("Distro detected as 'Arch Linux'")
         cmd = ["pacman", "-sy"] + ARCH_PKGS
         if user_uid > 0:
             cmd = ["sudo"] + cmd
         out, err = execute_shell(cmd, verbose=verbose)[1]
-    elif 'debian' in distro.lower():
+    elif "debian" in distro.lower():
         emit_log("Distro detected as 'Debian'")
         if user_uid > 0:
-            cmd = ["sudo", "apt-get", "install", "-y",
-                   "--force-yes"] + DEBIAN_PKGS
+            cmd = ["sudo", "apt-get", "install", "-y", "--force-yes"] + DEBIAN_PKGS
         else:
-            cmd = ["apt-get", "install", "-y",
-                   "--force-yes"] + DEBIAN_PKGS
+            cmd = ["apt-get", "install", "-y", "--force-yes"] + DEBIAN_PKGS
         out, err = execute_shell(cmd, verbose=verbose)[1]
-    elif 'devuan' in distro.lower():
+    elif "devuan" in distro.lower():
         emit_log("Distro detected as 'Devuan'")
         # Debian packages should just work in this case.
         if user_uid > 0:
@@ -444,7 +515,7 @@ def install_packages(distro: str, **kwargs) -> bool:
         else:
             cmd = ["sudo", "apt-get", "install", "-y", "--force-yes"] + DEBIAN_PKGS
         out, err = execute_shell(cmd, verbose=verbose)[1]
-    elif 'ubuntu' in distro.lower() or 'mint' in distro.lower():
+    elif "ubuntu" in distro.lower() or "mint" in distro.lower():
         emit_log("Distro detected as 'Mint' or 'Ubuntu'!")
         msg = "Package installation completed!"
         if user_uid > 0:
@@ -452,7 +523,7 @@ def install_packages(distro: str, **kwargs) -> bool:
         else:
             cmd = ["sudo", "apt-get", "install", "-y", "--force-yes"] + UBUNTU_PKGS
         out, err = execute_shell(cmd, verbose=verbose)[1]
-    elif 'fedora' in distro.lower():
+    elif "fedora" in distro.lower():
         emit_log("Distro detected as 'Fedora'")
         if user_uid > 0:
             cmd = ["dnf", "groupinstall", "-y", "development-tools"]
@@ -465,7 +536,9 @@ def install_packages(distro: str, **kwargs) -> bool:
             cmd = ["sudo", "dnf", "install", "-y"] + REDHAT_PKGS
             out, err = execute_shell(cmd, verbose=verbose)[1]
     else:
-        error_and_die("Your OS is not yet supported!  If you think you know what you are doing, you can use '-S' to continue anyways.")
+        error_and_die(
+            "Your OS is not yet supported!  If you think you know what you are doing, you can use '-S' to continue anyways."
+        )
     msg = "Package installation completed"
 
     emit_log(msg)
@@ -475,41 +548,108 @@ def install_packages(distro: str, **kwargs) -> bool:
 def parse_argv() -> None:
     """Set up args and parse them."""
     parser = argparse.ArgumentParser(description=DESC, prog=PROG)
-    parser.add_argument("--version", action="version", version=VERSION, help=argparse.SUPPRESS)
+    parser.add_argument(
+        "--version", action="version", version=VERSION, help=argparse.SUPPRESS
+    )
     version_options = parser.add_mutually_exclusive_group()
     version_options.add_argument("-s", "--sha", help="The git sha1sum to build.")
     version_options.add_argument("-t", "--tag", help="The git release tag to build.")
-    version_options.add_argument("-b", "--branch", help="The git branch to build (the tip of.)")
+    version_options.add_argument(
+        "-b", "--branch", help="The git branch to build (the tip of.)"
+    )
     options = parser.add_argument_group("Options")
-    options.add_argument("--force-bullet", action="store_true", help="Force build LibBullet.")
-    options.add_argument("--force-callff", action="store_true", help="Force build CallFF.")
-    options.add_argument("--force-mygui", action="store_true", help="Force build MyGUI.")
-    options.add_argument("--force-openmw", action="store_true", help="Force build OpenMW.")
+    options.add_argument(
+        "--force-bullet", action="store_true", help="Force build LibBullet."
+    )
+    options.add_argument(
+        "--force-callff", action="store_true", help="Force build CallFF."
+    )
+    options.add_argument(
+        "--force-mygui", action="store_true", help="Force build MyGUI."
+    )
+    options.add_argument(
+        "--force-openmw", action="store_true", help="Force build OpenMW."
+    )
     options.add_argument("--force-osg", action="store_true", help="Force build OSG.")
-    options.add_argument("--force-raknet", action="store_true", help="Force build Raknet.")
-    options.add_argument("--force-tes3mp", action="store_true", help="Force build TES3MP.")
-    options.add_argument("--force-unshield", action="store_true", help="Force build Unshield.")
-    options.add_argument("--force-pkg", action="store_true", help="Force build a package.")
-    options.add_argument("--force-all", action="store_true", help="Force build all dependencies and OpenMW.")
-    options.add_argument("--force-all-tes3mp", action="store_true", help="Force build all dependencies and TES3MP.")
-    options.add_argument("--install-prefix", help="Set the install prefix. Default: {}".format(INSTALL_PREFIX))
-    options.add_argument("-j", "--jobs",
-                         help="How many cores to use with make.  Default: {}".format(CPUS))
-    options.add_argument("-i", "--make-install", action="store_true", help="Run 'make install' on OpenMW or TES3MP.")
-    options.add_argument("-p", "--make-pkg", action="store_true", help="Make a portable package.")
-    options.add_argument("-N", "--no-pull", action="store_true",
-                         help="Don't do a 'git fetch --all' on the OpenMW sources.")
-    options.add_argument("-o", "--out", metavar="DIR",
-                         help="Where to write the package to.  Default: {}".format(OUT_DIR))
-    options.add_argument("-P", "--patch", help="Path to a patch file that should be applied.")
-    options.add_argument("-S", "--skip-install-pkgs", action="store_true",
-                         help="Don't try to install dependencies.")
-    options.add_argument("--src-dir", help="Set the source directory. Default: {}".format(SRC_DIR))
-    options.add_argument("-U", "--update", action="store_true", help="Try to update this script.")
+    options.add_argument(
+        "--force-raknet", action="store_true", help="Force build Raknet."
+    )
+    options.add_argument(
+        "--force-tes3mp", action="store_true", help="Force build TES3MP."
+    )
+    options.add_argument(
+        "--force-unshield", action="store_true", help="Force build Unshield."
+    )
+    options.add_argument(
+        "--force-pkg", action="store_true", help="Force build a package."
+    )
+    options.add_argument(
+        "--force-all",
+        action="store_true",
+        help="Force build all dependencies and OpenMW.",
+    )
+    options.add_argument(
+        "--force-all-tes3mp",
+        action="store_true",
+        help="Force build all dependencies and TES3MP.",
+    )
+    options.add_argument(
+        "--install-prefix",
+        help="Set the install prefix. Default: {}".format(INSTALL_PREFIX),
+    )
+    options.add_argument(
+        "-j",
+        "--jobs",
+        help="How many cores to use with make.  Default: {}".format(CPUS),
+    )
+    options.add_argument(
+        "-i",
+        "--make-install",
+        action="store_true",
+        help="Run 'make install' on OpenMW or TES3MP.",
+    )
+    options.add_argument(
+        "-p", "--make-pkg", action="store_true", help="Make a portable package."
+    )
+    options.add_argument(
+        "-N",
+        "--no-pull",
+        action="store_true",
+        help="Don't do a 'git fetch --all' on the OpenMW sources.",
+    )
+    options.add_argument(
+        "-o",
+        "--out",
+        metavar="DIR",
+        help="Where to write the package to.  Default: {}".format(OUT_DIR),
+    )
+    options.add_argument(
+        "-P", "--patch", help="Path to a patch file that should be applied."
+    )
+    options.add_argument(
+        "-S",
+        "--skip-install-pkgs",
+        action="store_true",
+        help="Don't try to install dependencies.",
+    )
+    options.add_argument(
+        "--src-dir", help="Set the source directory. Default: {}".format(SRC_DIR)
+    )
+    options.add_argument(
+        "-U", "--update", action="store_true", help="Try to update this script."
+    )
     options.add_argument("-MP", "--tes3mp", action="store_true", help="Build TES3MP.")
-    options.add_argument("--tes3mp-server-only", action="store_true", help="Build TES3MP (server only.)")
-    options.add_argument("--with-corescripts", action="store_true", help="Also clone down the CoreScripts repo.")
-    options.add_argument("-v", "--verbose", action="store_true", help="Enable verbose output.")
+    options.add_argument(
+        "--tes3mp-server-only", action="store_true", help="Build TES3MP (server only.)"
+    )
+    options.add_argument(
+        "--with-corescripts",
+        action="store_true",
+        help="Also clone down the CoreScripts repo.",
+    )
+    options.add_argument(
+        "-v", "--verbose", action="store_true", help="Enable verbose output."
+    )
 
     return parser.parse_args()
 
@@ -643,7 +783,7 @@ def main() -> None:
         with_corescripts = True
     if parsed.branch:
         branch = rev = parsed.branch
-        if '/' not in branch:
+        if "/" not in branch:
             branch = rev = "origin/" + parsed.branch
         emit_log("Branch selected: " + branch)
     elif parsed.sha:
@@ -663,7 +803,9 @@ def main() -> None:
         if skip_install_pkgs:
             pass
         else:
-            error_and_die("Unable to determine your distro to install dependencies!  Try again and use '-S' if you know what you are doing.")
+            error_and_die(
+                "Unable to determine your distro to install dependencies!  Try again and use '-S' if you know what you are doing."
+            )
     else:
         distro = out.decode().split(":")[1].strip()
 
@@ -683,87 +825,126 @@ def main() -> None:
         emit_log("Skipping OSG-OPENMW build")
     else:
         # OSG-OPENMW
-        build_library("osg-openmw",
-                      check_file=os.path.join(install_prefix, "osg-openmw", "lib64", "libosg.so"),
-                      cmake_args=["-DBUILD_OSG_PLUGINS_BY_DEFAULT=0", "-DBUILD_OSG_PLUGIN_OSG=1",
-                                  "-DBUILD_OSG_PLUGIN_DDS=1", "-DBUILD_OSG_PLUGIN_TGA=1",
-                                  "-DBUILD_OSG_PLUGIN_BMP=1", "-DBUILD_OSG_PLUGIN_JPEG=1",
-                                  "-DBUILD_OSG_PLUGIN_PNG=1", "-DBUILD_OSG_DEPRECATED_SERIALIZERS=0"],
-                      cpus=cpus,
-                      force=force_osg,
-                      git_url='https://github.com/OpenMW/osg.git',
-                      install_prefix=install_prefix,
-                      src_dir=src_dir,
-                      verbose=verbose)
+        build_library(
+            "osg-openmw",
+            check_file=os.path.join(install_prefix, "osg-openmw", "lib64", "libosg.so"),
+            cmake_args=[
+                "-DBUILD_OSG_PLUGINS_BY_DEFAULT=0",
+                "-DBUILD_OSG_PLUGIN_OSG=1",
+                "-DBUILD_OSG_PLUGIN_DDS=1",
+                "-DBUILD_OSG_PLUGIN_TGA=1",
+                "-DBUILD_OSG_PLUGIN_BMP=1",
+                "-DBUILD_OSG_PLUGIN_JPEG=1",
+                "-DBUILD_OSG_PLUGIN_PNG=1",
+                "-DBUILD_OSG_DEPRECATED_SERIALIZERS=0",
+            ],
+            cpus=cpus,
+            force=force_osg,
+            git_url="https://github.com/OpenMW/osg.git",
+            install_prefix=install_prefix,
+            src_dir=src_dir,
+            verbose=verbose,
+        )
 
     # BULLET
-    build_library("bullet",
-                  check_file=os.path.join(install_prefix, "bullet", "lib", "libLinearMath.so"),
-                  cmake_args=["-DBUILD_CPU_DEMOS=false", "-DBUILD_OPENGL3_DEMOS=false",
-                              "-DBUILD_BULLET2_DEMOS=false", "-DBUILD_UNIT_TESTS=false",
-                              "-DINSTALL_LIBS=on", "-DBUILD_SHARED_LIBS=on"],
-                  cpus=cpus,
-                  force=force_bullet,
-                  git_url='https://github.com/bulletphysics/bullet3.git',
-                  install_prefix=install_prefix,
-                  src_dir=src_dir,
-                  verbose=verbose,
-                  version=BULLET_VERSION)
+    build_library(
+        "bullet",
+        check_file=os.path.join(install_prefix, "bullet", "lib", "libLinearMath.so"),
+        cmake_args=[
+            "-DBUILD_CPU_DEMOS=false",
+            "-DBUILD_OPENGL3_DEMOS=false",
+            "-DBUILD_BULLET2_DEMOS=false",
+            "-DBUILD_UNIT_TESTS=false",
+            "-DINSTALL_LIBS=on",
+            "-DBUILD_SHARED_LIBS=on",
+        ],
+        cpus=cpus,
+        force=force_bullet,
+        git_url="https://github.com/bulletphysics/bullet3.git",
+        install_prefix=install_prefix,
+        src_dir=src_dir,
+        verbose=verbose,
+        version=BULLET_VERSION,
+    )
 
     # UNSHIELD
-    build_library("unshield",
-                  check_file=os.path.join(install_prefix, "unshield", "bin", "unshield"),
-                  cpus=cpus,
-                  force=force_unshield,
-                  git_url='https://github.com/twogood/unshield.git',
-                  install_prefix=install_prefix,
-                  src_dir=src_dir,
-                  verbose=verbose,
-                  version=UNSHIELD_VERSION)
+    build_library(
+        "unshield",
+        check_file=os.path.join(install_prefix, "unshield", "bin", "unshield"),
+        cpus=cpus,
+        force=force_unshield,
+        git_url="https://github.com/twogood/unshield.git",
+        install_prefix=install_prefix,
+        src_dir=src_dir,
+        verbose=verbose,
+        version=UNSHIELD_VERSION,
+    )
 
     # Don't build MyGUI if this is a dockerized build
     if make_pkg and os.getenv("TES3MP_FORGE"):
         emit_log("Skipping MyGUI build")
     else:
         # MYGUI
-        build_library("mygui",
-                      check_file=os.path.join(install_prefix, "mygui", "lib", "libMyGUIEngine.so"),
-                      cmake_args=["-DMYGUI_BUILD_TOOLS=OFF", "-DMYGUI_RENDERSYSTEM=1",
-                                  "-DMYGUI_BUILD_DEMOS=OFF", "-DMYGUI_BUILD_PLUGINS=OFF"],
-                      cpus=cpus,
-                      force=force_mygui,
-                      git_url='https://github.com/MyGUI/mygui.git',
-                      install_prefix=install_prefix,
-                      src_dir=src_dir,
-                      verbose=verbose,
-                      version=MYGUI_VERSION)
+        build_library(
+            "mygui",
+            check_file=os.path.join(
+                install_prefix, "mygui", "lib", "libMyGUIEngine.so"
+            ),
+            cmake_args=[
+                "-DMYGUI_BUILD_TOOLS=OFF",
+                "-DMYGUI_RENDERSYSTEM=1",
+                "-DMYGUI_BUILD_DEMOS=OFF",
+                "-DMYGUI_BUILD_PLUGINS=OFF",
+            ],
+            cpus=cpus,
+            force=force_mygui,
+            git_url="https://github.com/MyGUI/mygui.git",
+            install_prefix=install_prefix,
+            src_dir=src_dir,
+            verbose=verbose,
+            version=MYGUI_VERSION,
+        )
 
     if tes3mp or tes3mp_serveronly:
-        build_library("callff",
-                      check_file=os.path.join(install_prefix, "src", "callff", "build", "src", "libcallff.a"),
-                      cpus=cpus,
-                      force=force_callff,
-                      git_url='https://github.com/Koncord/CallFF.git',
-                      install_prefix=install_prefix,
-                      make_install=False,  # Never ever make install this
-                      src_dir=src_dir,
-                      verbose=verbose,
-                      version=CALLFF_VERSION)
+        build_library(
+            "callff",
+            check_file=os.path.join(
+                install_prefix, "src", "callff", "build", "src", "libcallff.a"
+            ),
+            cpus=cpus,
+            force=force_callff,
+            git_url="https://github.com/Koncord/CallFF.git",
+            install_prefix=install_prefix,
+            make_install=False,  # Never ever make install this
+            src_dir=src_dir,
+            verbose=verbose,
+            version=CALLFF_VERSION,
+        )
 
-        build_library("raknet",
-                      check_file=os.path.join(install_prefix, "src", "raknet", "build", "lib", "libRakNetLibStatic.a"),
-                      cmake_args=["-DRAKNET_ENABLE_DLL=OFF", "-DRAKNET_ENABLE_SAMPLES=OFF",
-                                  "-DRAKNET_ENABLE_STATIC=ON", "-DRAKNET_GENERATE_INCLUDE_ONLY_DIR=ON"],
-                      cpus=cpus,
-                      force=force_raknet,
-                      git_url='https://github.com/TES3MP/RakNet.git',
-                      install_prefix=install_prefix,
-                      make_install=False,  # Never ever make install this
-                      src_dir=src_dir,
-                      verbose=verbose,
-                      version=RAKNET_VERSION)
+        build_library(
+            "raknet",
+            check_file=os.path.join(
+                install_prefix, "src", "raknet", "build", "lib", "libRakNetLibStatic.a"
+            ),
+            cmake_args=[
+                "-DRAKNET_ENABLE_DLL=OFF",
+                "-DRAKNET_ENABLE_SAMPLES=OFF",
+                "-DRAKNET_ENABLE_STATIC=ON",
+                "-DRAKNET_GENERATE_INCLUDE_ONLY_DIR=ON",
+            ],
+            cpus=cpus,
+            force=force_raknet,
+            git_url="https://github.com/TES3MP/RakNet.git",
+            install_prefix=install_prefix,
+            make_install=False,  # Never ever make install this
+            src_dir=src_dir,
+            verbose=verbose,
+            version=RAKNET_VERSION,
+        )
 
-        tes3mp_sha = get_repo_sha(src_dir, repo="tes3mp", rev=rev, pull=pull, verbose=verbose)
+        tes3mp_sha = get_repo_sha(
+            src_dir, repo="tes3mp", rev=rev, pull=pull, verbose=verbose
+        )
 
         if tes3mp_sha:
             tes3mp = "tes3mp-" + tes3mp_sha
@@ -772,35 +953,54 @@ def main() -> None:
         build_env = os.environ.copy()
         if os.getenv("TES3MP_FORGE"):
             # Don't need to include MyGUI because it wasn't built and/or is gotten from the system
-            build_env["CMAKE_PREFIX_PATH"] = "/usr/local/lib64:/usr/local/lib:{0}/unshield:{0}/bullet:{0}/src/callff/build/src:{0}/src/raknet/build/lib".format(
-                install_prefix)
+            build_env[
+                "CMAKE_PREFIX_PATH"
+            ] = "/usr/local/lib64:/usr/local/lib:{0}/unshield:{0}/bullet:{0}/src/callff/build/src:{0}/src/raknet/build/lib".format(
+                install_prefix
+            )
         else:
-            build_env["CMAKE_PREFIX_PATH"] = "{0}/osg-openmw:{0}/unshield:{0}/mygui:{0}/bullet:{0}/src/callff/build/src:{0}/src/raknet/build/lib".format(
-                install_prefix)
+            build_env[
+                "CMAKE_PREFIX_PATH"
+            ] = "{0}/osg-openmw:{0}/unshield:{0}/mygui:{0}/bullet:{0}/src/callff/build/src:{0}/src/raknet/build/lib".format(
+                install_prefix
+            )
             build_env["LDFLAGS"] = "-llzma -lz -lbz2"
 
         tes3mp_binary = "tes3mp"
-        tes3mp_cmake_args = ["-Wno-dev", "-DCMAKE_BUILD_TYPE=Release", "-DBUILD_OPENCS=OFF",
-                             "-DCMAKE_CXX_STANDARD=14", '-DCMAKE_CXX_FLAGS=\"-std=c++14\"',
-                             "-DDESIRED_QT_VERSION=5",
-                             # CMake Warning:
-                             #   Manually-specified variables were not used by the project:
-                             #     CallFF_INCLUDES
-                             #     CallFF_LIBRARY
-                             '-DCallFF_INCLUDES={}/callff/include'.format(SRC_DIR),
-                             "-DCallFF_LIBRARY={}/callff/build/src/libcallff.a".format(SRC_DIR),
-                             "-DRakNet_INCLUDES={}/raknet/include".format(SRC_DIR),
-                             "-DRakNet_LIBRARY_DEBUG={}/raknet/build/lib/libRakNetLibStatic.a".format(SRC_DIR),
-                             "-DRakNet_LIBRARY_RELEASE={}/raknet/build/lib/libRakNetLibStatic.a".format(SRC_DIR)]
+        # TODO: a flag for enabling a debug build
+        tes3mp_cmake_args = [
+            "-Wno-dev",
+            "-DCMAKE_BUILD_TYPE=Debug",
+            "-DBUILD_OPENCS=OFF",
+            "-DCMAKE_CXX_STANDARD=14",
+            '-DCMAKE_CXX_FLAGS="-std=c++14"',
+            "-DDESIRED_QT_VERSION=5",
+            "-DCallFF_INCLUDES={}/callff/include".format(SRC_DIR),
+            "-DCallFF_LIBRARY={}/callff/build/src/libcallff.a".format(SRC_DIR),
+            "-DRakNet_INCLUDES={}/raknet/include".format(SRC_DIR),
+            "-DRakNet_LIBRARY_DEBUG={}/raknet/build/lib/libRakNetLibStatic.a".format(
+                SRC_DIR
+            ),
+            "-DRakNet_LIBRARY_RELEASE={}/raknet/build/lib/libRakNetLibStatic.a".format(
+                SRC_DIR
+            ),
+        ]
 
         if tes3mp_serveronly:
             # Link against the system Bullet and OSB
             tes3mp_binary = "tes3mp-server"
-            server_args = ["-DBUILD_OPENMW_MP=ON", "-DBUILD_BROWSER=OFF",
-                           "-DBUILD_BSATOOL=OFF", "-DBUILD_ESMTOOL=OFF",
-                           "-DBUILD_ESSIMPORTER=OFF", "-DBUILD_LAUNCHER=OFF",
-                           "-DBUILD_MWINIIMPORTER=OFF", "-DBUILD_MYGUI_PLUGIN=OFF",
-                           "-DBUILD_OPENMW=OFF", "-DBUILD_WIZARD=OFF"]
+            server_args = [
+                "-DBUILD_OPENMW_MP=ON",
+                "-DBUILD_BROWSER=OFF",
+                "-DBUILD_BSATOOL=OFF",
+                "-DBUILD_ESMTOOL=OFF",
+                "-DBUILD_ESSIMPORTER=OFF",
+                "-DBUILD_LAUNCHER=OFF",
+                "-DBUILD_MWINIIMPORTER=OFF",
+                "-DBUILD_MYGUI_PLUGIN=OFF",
+                "-DBUILD_OPENMW=OFF",
+                "-DBUILD_WIZARD=OFF",
+            ]
             for arg in server_args:
                 tes3mp_cmake_args.append(arg)
         else:
@@ -816,23 +1016,27 @@ def main() -> None:
             for arg in full_args:
                 tes3mp_cmake_args.append(arg)
 
-        build_library(tes3mp,
-                      check_file=os.path.join(SRC_DIR, "tes3mp", "build", tes3mp_binary),
-                      cmake_args=tes3mp_cmake_args,
-                      clone_dest="tes3mp",
-                      cpus=cpus,
-                      env=build_env,
-                      force=force_tes3mp,
-                      git_url='https://github.com/TES3MP/openmw-tes3mp.git',
-                      install_prefix=install_prefix,
-                      make_install=make_install,
-                      patch=patch,
-                      src_dir=src_dir,
-                      verbose=verbose,
-                      version=rev)
+        build_library(
+            tes3mp,
+            check_file=os.path.join(SRC_DIR, "tes3mp", "build", tes3mp_binary),
+            cmake_args=tes3mp_cmake_args,
+            clone_dest="tes3mp",
+            cpus=cpus,
+            env=build_env,
+            force=force_tes3mp,
+            git_url="https://github.com/TES3MP/openmw-tes3mp.git",
+            install_prefix=install_prefix,
+            make_install=make_install,
+            patch=patch,
+            src_dir=src_dir,
+            verbose=verbose,
+            version=rev,
+        )
 
-        tes3mp_sha = get_repo_sha(src_dir, repo="tes3mp", rev=rev, pull=pull, verbose=verbose)
-        tes3mp = '-'.join((tes3mp, tes3mp_sha))
+        tes3mp_sha = get_repo_sha(
+            src_dir, repo="tes3mp", rev=rev, pull=pull, verbose=verbose
+        )
+        tes3mp = "-".join((tes3mp, tes3mp_sha))
 
         if make_install:
             os.chdir(install_prefix)
@@ -843,23 +1047,36 @@ def main() -> None:
             os.symlink("tes3mp-" + tes3mp_sha, "tes3mp")
 
         if make_pkg:
-            make_portable_package(tes3mp, distro, force=force_pkg, out_dir=out_dir, serveronly=tes3mp_serveronly)
+            make_portable_package(
+                tes3mp,
+                distro,
+                force=force_pkg,
+                out_dir=out_dir,
+                serveronly=tes3mp_serveronly,
+            )
 
         if with_corescripts:
-            scripts_dir = os.path.join(INSTALL_PREFIX, tes3mp, "etc", "openmw", "server")
+            scripts_dir = os.path.join(
+                INSTALL_PREFIX, tes3mp, "etc", "openmw", "server"
+            )
             tes3mp_etc_dir = os.path.join(INSTALL_PREFIX, tes3mp, "etc", "openmw")
 
             os.chdir(tes3mp_etc_dir)
-            execute_shell(["git", "clone", "https://github.com/TES3MP/CoreScripts.git", "server"], verbose=verbose)
+            execute_shell(
+                ["git", "clone", "https://github.com/TES3MP/CoreScripts.git", "server"],
+                verbose=verbose,
+            )
 
             os.chdir("server")
-            execute_shell(["git", "checkout", TES3MP_CORESCRIPTS_VERSION], verbose=verbose)
+            execute_shell(
+                ["git", "checkout", TES3MP_CORESCRIPTS_VERSION], verbose=verbose
+            )
             emit_log("Server core scripts installed at: " + scripts_dir)
 
             orig_cfg = []
             new_cfg = []
             os.chdir(tes3mp_etc_dir)
-            with open("tes3mp-server-default.cfg", 'r') as f:
+            with open("tes3mp-server-default.cfg", "r") as f:
                 orig_cfg = f.readlines()
 
             for line in orig_cfg:
@@ -868,7 +1085,7 @@ def main() -> None:
                 else:
                     new_cfg.append(line)
 
-            with open("tes3mp-server-default.cfg", 'w') as f:
+            with open("tes3mp-server-default.cfg", "w") as f:
                 for line in new_cfg:
                     f.write(line)
 
@@ -881,13 +1098,15 @@ def main() -> None:
             # There's no sha yet since the source hasn't been cloned.
             openmw = "openmw"
         build_env = os.environ.copy()
-        build_env["CMAKE_PREFIX_PATH"] = "{0}/osg-openmw:{0}/unshield:{0}/mygui:{0}/bullet".format(
-            install_prefix)
+        build_env[
+            "CMAKE_PREFIX_PATH"
+        ] = "{0}/osg-openmw:{0}/unshield:{0}/mygui:{0}/bullet".format(install_prefix)
         build_env["LDFLAGS"] = "-llzma -lz -lbz2"
 
         bullet = os.path.join(INSTALL_PREFIX, "bullet")
         osg = os.path.join(INSTALL_PREFIX, "osg-openmw")
         full_args = [
+            "-DBOOST_ROOT=/usr/include/boost",
             "-DCMAKE_BUILD_TYPE=MinSizeRel",
             "-DDESIRED_QT_VERSION=5",
             "-DOPENTHREADS_INCLUDE_DIR={}/include".format(osg),
@@ -911,22 +1130,27 @@ def main() -> None:
             "-DOSGVIEWER_INCLUDE_DIR={}/include".format(osg),
             "-DOSGVIEWER_LIBRARY={}/lib64/libosgViewer.so".format(osg),
             "-DBullet_INCLUDE_DIR={}/include/bullet".format(bullet),
-            "-DBullet_BulletCollision_LIBRARY={}/lib/libBulletCollision.so".format(bullet),
-            "-DBullet_LinearMath_LIBRARY={}/lib/libLinearMath.so".format(bullet)]
+            "-DBullet_BulletCollision_LIBRARY={}/lib/libBulletCollision.so".format(
+                bullet
+            ),
+            "-DBullet_LinearMath_LIBRARY={}/lib/libLinearMath.so".format(bullet),
+        ]
 
-        build_library(openmw,
-                      check_file=os.path.join(install_prefix, openmw, "bin", "openmw"),
-                      cmake_args=full_args,
-                      clone_dest="openmw",
-                      cpus=cpus,
-                      env=build_env,
-                      force=force_openmw,
-                      git_url='https://github.com/OpenMW/openmw.git',
-                      install_prefix=install_prefix,
-                      patch=patch,
-                      src_dir=src_dir,
-                      verbose=verbose,
-                      version=rev)
+        build_library(
+            openmw,
+            check_file=os.path.join(install_prefix, openmw, "bin", "openmw"),
+            cmake_args=full_args,
+            clone_dest="openmw",
+            cpus=cpus,
+            env=build_env,
+            force=force_openmw,
+            git_url="https://github.com/OpenMW/openmw.git",
+            install_prefix=install_prefix,
+            patch=patch,
+            src_dir=src_dir,
+            verbose=verbose,
+            version=rev,
+        )
         os.chdir(install_prefix)
         # Don't fetch updates since new ones might exist
         openmw_sha = get_repo_sha(src_dir, rev=rev, pull=False, verbose=verbose)
@@ -949,7 +1173,7 @@ def main() -> None:
     emit_log("Took {m} minutes, {s} seconds.".format(m=minutes, s=seconds))
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     try:
         main()
     except KeyboardInterrupt:
