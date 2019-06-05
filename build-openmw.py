@@ -187,8 +187,8 @@ def build_library(
             emit_log("{} installed successfully".format(libname))
 
 
-def format_openmw_cmake_args(bullet_path: str, osg_path: str) -> list:
-    return [
+def format_openmw_cmake_args(bullet_path: str, osg_path: str, use_bullet=False) -> list:
+    args = [
         "-DOPENTHREADS_INCLUDE_DIR={}/include".format(osg_path),
         "-DOPENTHREADS_LIBRARY={}/lib64/libOpenThreads.so".format(osg_path),
         "-DOSG_INCLUDE_DIR={}/include".format(osg_path),
@@ -209,12 +209,18 @@ def format_openmw_cmake_args(bullet_path: str, osg_path: str) -> list:
         "-DOSGUTIL_LIBRARY={}/lib64/libosgUtil.so".format(osg_path),
         "-DOSGVIEWER_INCLUDE_DIR={}/include".format(osg_path),
         "-DOSGVIEWER_LIBRARY={}/lib64/libosgViewer.so".format(osg_path),
-        "-DBullet_INCLUDE_DIR={}/include/bullet".format(bullet_path),
-        "-DBullet_BulletCollision_LIBRARY={}/lib/libBulletCollision.so".format(
-            bullet_path
-        ),
-        "-DBullet_LinearMath_LIBRARY={}/lib/libLinearMath.so".format(bullet_path),
     ]
+    if use_bullet:
+        args.append("-DBullet_INCLUDE_DIR={}/include/bullet".format(bullet_path))
+        args.append(
+            "-DBullet_BulletCollision_LIBRARY={}/lib/libBulletCollision.so".format(
+                bullet_path
+            )
+        )
+        args.append(
+            "-DBullet_LinearMath_LIBRARY={}/lib/libLinearMath.so".format(bullet_path)
+        )
+    return args
 
 
 def get_distro() -> tuple:
@@ -1047,11 +1053,15 @@ def main() -> None:
             bullet = os.path.join(INSTALL_PREFIX, "bullet")
             if os.getenv("TES3MP_FORGE"):
                 osg = "/usr/local"
-                full_args = format_openmw_cmake_args(bullet, osg)
+                full_args = format_openmw_cmake_args(
+                    bullet, osg, use_bullet=build_bullet or force_bullet
+                )
 
             else:
                 osg = os.path.join(INSTALL_PREFIX, "osg-openmw")
-                full_args = format_openmw_cmake_args(bullet, osg)
+                full_args = format_openmw_cmake_args(
+                    bullet, osg, use_bullet=build_bullet or force_bullet
+                )
             for arg in full_args:
                 tes3mp_cmake_args.append(arg)
 
