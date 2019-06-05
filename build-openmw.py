@@ -20,7 +20,7 @@ TES3MP_CORESCRIPTS_VERSION = "0.7.0"
 
 CPUS = os.cpu_count() + 1
 INSTALL_PREFIX = os.path.join("/", "opt", "morrowind")
-DESC = "Build OpenMW for your system, install it all to {}.  Also builds OSG, libBullet, Unshield, and MyGUI, and links against those builds.".format(
+DESC = "Build OpenMW for your system, install it all to {}.  Also builds the OpenMW fork of OSG, and optionally libBullet, Unshield, and MyGUI, and links against those builds.".format(
     INSTALL_PREFIX
 )
 LOGFMT = "%(asctime)s | %(message)s"
@@ -31,10 +31,10 @@ ARCH_PKGS = "".split()
 DEBIAN_PKGS = "git libopenal-dev libsdl2-dev qt5-default libfreetype6-dev libboost-filesystem-dev libboost-iostreams1.62-dev libboost-thread-dev libboost-program-options-dev libboost-system-dev libavcodec-dev libavformat-dev libavutil-dev libswscale-dev cmake build-essential libqt5opengl5-dev".split()
 REDHAT_PKGS = "openal-devel SDL2-devel qt5-devel boost-filesystem git boost-thread boost-program-options boost-system ffmpeg-devel ffmpeg-libs gcc-c++ tinyxml-devel cmake".split()
 UBUNTU_PKGS = ["libfreetype6-dev", "libbz2-dev", "liblzma-dev"] + DEBIAN_PKGS
-VOID_PKGS = "boost-devel cmake ffmpeg-devel freetype-devel gcc git libavformat libavutil libmygui-devel libopenal-devel libopenjpeg2-devel libswresample libswscale libtxc_dxtn liblzma-devel libXt-devel make nasm ois-devel pkg-config python-devel python3-devel qt5-devel SDL2-devel zlib-devel".split()
+VOID_PKGS = "boost-devel bullet-devel cmake ffmpeg-devel freetype-devel gcc git libavformat libavutil libmygui-devel libopenal-devel libopenjpeg2-devel libswresample libswscale libunshield-devel libtxc_dxtn liblzma-devel libXt-devel make nasm ois-devel pkg-config python-devel python3-devel qt5-devel SDL2-devel zlib-devel".split()
 
 PROG = "build-openmw"
-VERSION = "1.6"
+VERSION = "1.7"
 
 
 def emit_log(msg: str, level=logging.INFO, quiet=False, *args, **kwargs) -> None:
@@ -559,6 +559,21 @@ def parse_argv() -> None:
     )
     options = parser.add_argument_group("Options")
     options.add_argument(
+        "--build-bullet",
+        action="store_true",
+        help="Build LibBullet, rather than use the system package.",
+    )
+    options.add_argument(
+        "--build-mygui",
+        action="store_true",
+        help="Build MyGUI, rather than use the system package.",
+    )
+    options.add_argument(
+        "--build-unshield",
+        action="store_true",
+        help="Build libunshield, rather than use the system package.",
+    )
+    options.add_argument(
         "--force-bullet", action="store_true", help="Force build LibBullet."
     )
     options.add_argument(
@@ -660,6 +675,9 @@ def main() -> None:
     start = datetime.datetime.now()
     cpus = CPUS
     distro = None
+    build_bullet = False
+    build_mygui = False
+    build_unshield = False
     force_bullet = False
     force_callff = False
     force_mygui = False
@@ -704,6 +722,15 @@ def main() -> None:
         force_unshield = True
         force_pkg = True
         emit_log("Force building all TES3MP dependencies")
+    if parsed.build_bullet:
+        build_bullet = True
+        emit_log("Building LibBullet")
+    if parsed.build_mygui:
+        build_mygui = True
+        emit_log("Building MyGUI")
+    if parsed.build_unshield:
+        build_unshield = True
+        emit_log("Building Unshield")
     if parsed.force_bullet:
         force_bullet = True
         emit_log("Forcing build of LibBullet")
@@ -847,63 +874,68 @@ def main() -> None:
         )
 
     # BULLET
-    build_library(
-        "bullet",
-        check_file=os.path.join(install_prefix, "bullet", "lib", "libLinearMath.so"),
-        cmake_args=[
-            "-DBUILD_CPU_DEMOS=false",
-            "-DBUILD_OPENGL3_DEMOS=false",
-            "-DBUILD_BULLET2_DEMOS=false",
-            "-DBUILD_UNIT_TESTS=false",
-            "-DINSTALL_LIBS=on",
-            "-DBUILD_SHARED_LIBS=on",
-        ],
-        cpus=cpus,
-        force=force_bullet,
-        git_url="https://github.com/bulletphysics/bullet3.git",
-        install_prefix=install_prefix,
-        src_dir=src_dir,
-        verbose=verbose,
-        version=BULLET_VERSION,
-    )
+    if build_bullet or force_bullet:
+        build_library(
+            "bullet",
+            check_file=os.path.join(
+                install_prefix, "bullet", "lib", "libLinearMath.so"
+            ),
+            cmake_args=[
+                "-DBUILD_CPU_DEMOS=false",
+                "-DBUILD_OPENGL3_DEMOS=false",
+                "-DBUILD_BULLET2_DEMOS=false",
+                "-DBUILD_UNIT_TESTS=false",
+                "-DINSTALL_LIBS=on",
+                "-DBUILD_SHARED_LIBS=on",
+            ],
+            cpus=cpus,
+            force=force_bullet,
+            git_url="https://github.com/bulletphysics/bullet3.git",
+            install_prefix=install_prefix,
+            src_dir=src_dir,
+            verbose=verbose,
+            version=BULLET_VERSION,
+        )
 
     # UNSHIELD
-    build_library(
-        "unshield",
-        check_file=os.path.join(install_prefix, "unshield", "bin", "unshield"),
-        cpus=cpus,
-        force=force_unshield,
-        git_url="https://github.com/twogood/unshield.git",
-        install_prefix=install_prefix,
-        src_dir=src_dir,
-        verbose=verbose,
-        version=UNSHIELD_VERSION,
-    )
+    if build_unshield or force_unshield:
+        build_library(
+            "unshield",
+            check_file=os.path.join(install_prefix, "unshield", "bin", "unshield"),
+            cpus=cpus,
+            force=force_unshield,
+            git_url="https://github.com/twogood/unshield.git",
+            install_prefix=install_prefix,
+            src_dir=src_dir,
+            verbose=verbose,
+            version=UNSHIELD_VERSION,
+        )
 
     # Don't build MyGUI if this is a dockerized build
     if make_pkg and os.getenv("TES3MP_FORGE"):
         emit_log("Skipping MyGUI build")
     else:
         # MYGUI
-        build_library(
-            "mygui",
-            check_file=os.path.join(
-                install_prefix, "mygui", "lib", "libMyGUIEngine.so"
-            ),
-            cmake_args=[
-                "-DMYGUI_BUILD_TOOLS=OFF",
-                "-DMYGUI_RENDERSYSTEM=1",
-                "-DMYGUI_BUILD_DEMOS=OFF",
-                "-DMYGUI_BUILD_PLUGINS=OFF",
-            ],
-            cpus=cpus,
-            force=force_mygui,
-            git_url="https://github.com/MyGUI/mygui.git",
-            install_prefix=install_prefix,
-            src_dir=src_dir,
-            verbose=verbose,
-            version=MYGUI_VERSION,
-        )
+        if build_mygui or force_mygui:
+            build_library(
+                "mygui",
+                check_file=os.path.join(
+                    install_prefix, "mygui", "lib", "libMyGUIEngine.so"
+                ),
+                cmake_args=[
+                    "-DMYGUI_BUILD_TOOLS=OFF",
+                    "-DMYGUI_RENDERSYSTEM=1",
+                    "-DMYGUI_BUILD_DEMOS=OFF",
+                    "-DMYGUI_BUILD_PLUGINS=OFF",
+                ],
+                cpus=cpus,
+                force=force_mygui,
+                git_url="https://github.com/MyGUI/mygui.git",
+                install_prefix=install_prefix,
+                src_dir=src_dir,
+                verbose=verbose,
+                version=MYGUI_VERSION,
+            )
 
     if tes3mp or tes3mp_serveronly:
         build_library(
@@ -959,11 +991,18 @@ def main() -> None:
                 install_prefix
             )
         else:
-            build_env[
-                "CMAKE_PREFIX_PATH"
-            ] = "{0}/osg-openmw:{0}/unshield:{0}/mygui:{0}/bullet:{0}/src/callff/build/src:{0}/src/raknet/build/lib".format(
-                install_prefix
-            )
+            prefix_path = "{0}/osg-openmw"
+
+            if build_bullet or force_bullet:
+                prefix_path += ":{0}/bullet"
+            if build_mygui or force_mygui:
+                prefix_path += ":{0}/mygui"
+            if build_unshield or force_unshield:
+                prefix_path += ":{0}/unshield"
+
+            prefix_path += ":{0}/src/raknet/build/lib"
+
+            build_env["CMAKE_PREFIX_PATH"] = prefix_path.format(install_prefix)
             build_env["LDFLAGS"] = "-llzma -lz -lbz2"
 
         tes3mp_binary = "tes3mp"
@@ -1098,14 +1137,22 @@ def main() -> None:
             # There's no sha yet since the source hasn't been cloned.
             openmw = "openmw"
         build_env = os.environ.copy()
-        build_env[
-            "CMAKE_PREFIX_PATH"
-        ] = "{0}/osg-openmw:{0}/unshield:{0}/mygui:{0}/bullet".format(install_prefix)
+
+        prefix_path = "{0}/osg-openmw"
+
+        if build_bullet or force_bullet:
+            prefix_path += ":{0}/bullet"
+        if build_mygui or force_mygui:
+            prefix_path += ":{0}/mygui"
+        if build_unshield or force_unshield:
+            prefix_path += ":{0}/unshield"
+
+        build_env["CMAKE_PREFIX_PATH"] = prefix_path.format(install_prefix)
+
         build_env["LDFLAGS"] = "-llzma -lz -lbz2"
 
-        bullet = os.path.join(INSTALL_PREFIX, "bullet")
         osg = os.path.join(INSTALL_PREFIX, "osg-openmw")
-        full_args = [
+        build_args = [
             "-DBOOST_ROOT=/usr/include/boost",
             "-DCMAKE_BUILD_TYPE=MinSizeRel",
             "-DDESIRED_QT_VERSION=5",
@@ -1129,12 +1176,20 @@ def main() -> None:
             "-DOSGUTIL_LIBRARY={}/lib64/libosgUtil.so".format(osg),
             "-DOSGVIEWER_INCLUDE_DIR={}/include".format(osg),
             "-DOSGVIEWER_LIBRARY={}/lib64/libosgViewer.so".format(osg),
-            "-DBullet_INCLUDE_DIR={}/include/bullet".format(bullet),
-            "-DBullet_BulletCollision_LIBRARY={}/lib/libBulletCollision.so".format(
-                bullet
-            ),
-            "-DBullet_LinearMath_LIBRARY={}/lib/libLinearMath.so".format(bullet),
         ]
+
+        if build_bullet or force_bullet:
+            bullet = os.path.join(INSTALL_PREFIX, "bullet")
+            bullet_args = [
+                "-DBullet_INCLUDE_DIR={}/include/bullet".format(bullet),
+                "-DBullet_BulletCollision_LIBRARY={}/lib/libBulletCollision.so".format(
+                    bullet
+                ),
+                "-DBullet_LinearMath_LIBRARY={}/lib/libLinearMath.so".format(bullet),
+            ]
+            full_args = build_args + bullet_args
+        else:
+            full_args = build_args
 
         build_library(
             openmw,
