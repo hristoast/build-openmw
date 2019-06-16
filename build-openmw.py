@@ -13,7 +13,6 @@ BULLET_VERSION = "2.86.1"
 MYGUI_VERSION = "3.2.2"
 UNSHIELD_VERSION = "1.4.2"
 
-CALLFF_VERSION = "origin/master"
 RAKNET_VERSION = "origin/master"
 
 TES3MP_CORESCRIPTS_VERSION = "0.7.0"
@@ -429,7 +428,6 @@ def make_portable_package(
         )
 
     tes3mp_libs = (
-        os.path.join(SRC_DIR, "callff", "build", "src", "libcallff.a"),
         os.path.join(SRC_DIR, "raknet", "build", "lib", "libRakNetLibStatic.a"),
     )
 
@@ -583,9 +581,6 @@ def parse_argv() -> None:
         "--force-bullet", action="store_true", help="Force build LibBullet."
     )
     options.add_argument(
-        "--force-callff", action="store_true", help="Force build CallFF."
-    )
-    options.add_argument(
         "--force-mygui", action="store_true", help="Force build MyGUI."
     )
     options.add_argument(
@@ -685,7 +680,6 @@ def main() -> None:
     build_mygui = False
     build_unshield = False
     force_bullet = False
-    force_callff = False
     force_mygui = False
     force_openmw = False
     force_osg = False
@@ -720,7 +714,6 @@ def main() -> None:
         emit_log("Force building all dependencies")
     if parsed.force_all_tes3mp:
         force_bullet = True
-        force_callff = True
         force_mygui = True
         force_osg = True
         force_raknet = True
@@ -740,9 +733,6 @@ def main() -> None:
     if parsed.force_bullet:
         force_bullet = True
         emit_log("Forcing build of LibBullet")
-    if parsed.force_callff:
-        force_callff = True
-        emit_log("Forcing build of CallFF")
     if parsed.force_mygui:
         force_mygui = True
         emit_log("Forcing build of MyGUI")
@@ -944,20 +934,6 @@ def main() -> None:
             )
 
     if tes3mp or tes3mp_serveronly:
-        build_library(
-            "callff",
-            check_file=os.path.join(
-                install_prefix, "src", "callff", "build", "src", "libcallff.a"
-            ),
-            cpus=cpus,
-            force=force_callff,
-            git_url="https://github.com/Koncord/CallFF.git",
-            install_prefix=install_prefix,
-            make_install=False,  # Never ever make install this
-            src_dir=src_dir,
-            verbose=verbose,
-            version=CALLFF_VERSION,
-        )
 
         build_library(
             "raknet",
@@ -993,7 +969,7 @@ def main() -> None:
             # Don't need to include MyGUI because it wasn't built and/or is gotten from the system
             build_env[
                 "CMAKE_PREFIX_PATH"
-            ] = "/usr/local/lib64:/usr/local/lib:{0}/unshield:{0}/bullet:{0}/src/callff/build/src:{0}/src/raknet/build/lib".format(
+            ] = "/usr/local/lib64:/usr/local/lib:{0}/unshield:{0}/bullet:{0}/src/raknet/build/lib".format(
                 install_prefix
             )
         else:
@@ -1015,13 +991,11 @@ def main() -> None:
         # TODO: a flag for enabling a debug build
         tes3mp_cmake_args = [
             "-Wno-dev",
-            "-DCMAKE_BUILD_TYPE=Debug",
+            "-DCMAKE_BUILD_TYPE=Release",
             "-DBUILD_OPENCS=OFF",
             "-DCMAKE_CXX_STANDARD=14",
             '-DCMAKE_CXX_FLAGS="-std=c++14"',
             "-DDESIRED_QT_VERSION=5",
-            "-DCallFF_INCLUDES={}/callff/include".format(SRC_DIR),
-            "-DCallFF_LIBRARY={}/callff/build/src/libcallff.a".format(SRC_DIR),
             "-DRakNet_INCLUDES={}/raknet/include".format(SRC_DIR),
             "-DRakNet_LIBRARY_DEBUG={}/raknet/build/lib/libRakNetLibStatic.a".format(
                 SRC_DIR
@@ -1110,6 +1084,7 @@ def main() -> None:
             )
             tes3mp_etc_dir = os.path.join(INSTALL_PREFIX, tes3mp, "etc", "openmw")
 
+            os.makedirs(tes3mp_etc_dir)
             os.chdir(tes3mp_etc_dir)
             execute_shell(
                 ["git", "clone", "https://github.com/TES3MP/CoreScripts.git", "server"],
