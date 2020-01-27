@@ -1202,6 +1202,8 @@ def main() -> None:
         else:
             full_args = build_args
 
+        full_args.append("-DOPENMW_LTO_BUILD=1")
+
         build_library(
             openmw,
             check_file=os.path.join(install_prefix, openmw, "bin", "openmw"),
