@@ -13,7 +13,7 @@ BULLET_VERSION = "2.86.1"
 MYGUI_VERSION = "3.2.2"
 UNSHIELD_VERSION = "1.4.2"
 
-RAKNET_VERSION = "origin/master"
+OPENMW_OSG_BRANCH = "3.4-experimental"
 
 TES3MP_CORESCRIPTS_VERSION = "0.7.0"
 
@@ -113,13 +113,27 @@ def build_library(
         emit_log("{} executing source clean".format(libname))
         execute_shell(["git", "checkout", "--", "."], verbose=verbose)
         execute_shell(["git", "clean", "-df"], verbose=verbose)
-        emit_log(
-            "{} resetting source to the desired rev ({rev})".format(
-                libname, rev=version
+
+        if libname == "osg-openmw":
+            emit_log(
+                "{} resetting source to the desired rev ({rev})".format(
+                    libname, rev=OPENMW_OSG_BRANCH
+                )
             )
-        )
-        execute_shell(["git", "checkout", version], verbose=verbose)
-        execute_shell(["git", "reset", "--hard", version], verbose=verbose)
+            execute_shell(["git", "checkout", OPENMW_OSG_BRANCH], verbose=verbose)
+            execute_shell(
+                ["git", "reset", "--hard", "origin/" + OPENMW_OSG_BRANCH],
+                verbose=verbose,
+            )
+
+        else:
+            emit_log(
+                "{} resetting source to the desired rev ({rev})".format(
+                    libname, rev=version
+                )
+            )
+            execute_shell(["git", "checkout", version], verbose=verbose)
+            execute_shell(["git", "reset", "--hard", version], verbose=verbose)
 
     if not clone_dest:
         clone_dest = libname
@@ -130,7 +144,13 @@ def build_library(
         if not os.path.exists(os.path.join(src_dir, clone_dest)):
             emit_log("{} source directory not found, cloning...".format(clone_dest))
             os.chdir(src_dir)
-            execute_shell(["git", "clone", git_url, clone_dest], verbose=verbose)[1]
+            if "osg-openmw" in clone_dest:
+                execute_shell(
+                    ["git", "clone", "-b", OPENMW_OSG_BRANCH, git_url, clone_dest],
+                    verbose=verbose,
+                )[1]
+            else:
+                execute_shell(["git", "clone", git_url, clone_dest], verbose=verbose)[1]
             if not os.path.exists(os.path.join(src_dir, libname)):
                 error_and_die("Could not clone {} for some reason!".format(clone_dest))
 
@@ -613,7 +633,9 @@ def parse_argv() -> None:
         help="Force build all dependencies and TES3MP.",
     )
     options.add_argument(
-        "--openmw-osg", action="store_true", help="Use the OpenMW OSG fork."
+        "--system-osg",
+        action="store_true",
+        help="Use the system-provided OSG instead of the OpenMW forked one.",
     )
     options.add_argument(
         "--install-prefix",
@@ -694,7 +716,7 @@ def main() -> None:
     force_unshield = False
     force_pkg = False
     install_prefix = INSTALL_PREFIX
-    system_osg = True
+    system_osg = False
     parsed = parse_argv()
     make_install = False
     make_pkg = False
@@ -788,9 +810,9 @@ def main() -> None:
     if parsed.skip_install_pkgs:
         skip_install_pkgs = parsed.skip_install_pkgs
         emit_log("Package installs will be skipped")
-    if parsed.openmw_osg:
+    if parsed.system_osg:
         system_osg = False
-        emit_log("The OpenMW OSG fork will be used.")
+        emit_log("The system OSG will be used.")
     if parsed.src_dir:
         src_dir = parsed.src_dir
         emit_log("Source directory set to: " + src_dir)
