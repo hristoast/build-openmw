@@ -539,17 +539,17 @@ def install_packages(distro: str, **kwargs) -> bool:
         emit_log("Distro detected as 'Devuan'")
         # Debian packages should just work in this case.
         if user_uid > 0:
-            cmd = ["apt-get", "install", "-y", "--force-yes"] + DEBIAN_PKGS
-        else:
             cmd = ["sudo", "apt-get", "install", "-y", "--force-yes"] + DEBIAN_PKGS
+        else:
+            cmd = ["apt-get", "install", "-y", "--force-yes"] + DEBIAN_PKGS
         out, err = execute_shell(cmd, verbose=verbose)[1]
     elif "ubuntu" in distro.lower() or "mint" in distro.lower():
         emit_log("Distro detected as 'Mint' or 'Ubuntu'!")
         msg = "Package installation completed!"
         if user_uid > 0:
-            cmd = ["apt-get", "install", "-y", "--force-yes"] + UBUNTU_PKGS
-        else:
             cmd = ["sudo", "apt-get", "install", "-y", "--force-yes"] + UBUNTU_PKGS
+        else:
+            cmd = ["apt-get", "install", "-y", "--force-yes"] + UBUNTU_PKGS
         out, err = execute_shell(cmd, verbose=verbose)[1]
     elif "fedora" in distro.lower():
         emit_log("Distro detected as 'Fedora'")
