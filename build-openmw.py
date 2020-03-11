@@ -27,13 +27,13 @@ OUT_DIR = os.getenv("HOME")
 SRC_DIR = os.path.join(INSTALL_PREFIX, "src")
 
 ARCH_PKGS = "".split()
-DEBIAN_PKGS = "git libopenal-dev libsdl2-dev qt5-default libfreetype6-dev libboost-filesystem-dev libboost-iostreams1.62-dev libboost-thread-dev libboost-program-options-dev libboost-system-dev libavcodec-dev libavformat-dev libavutil-dev libswscale-dev cmake build-essential libqt5opengl5-dev".split()
+DEBIAN_PKGS = "git libopenal-dev libsdl2-dev qt5-default libfreetype6-dev libboost-filesystem-dev libboost1.71-dev libboost-thread-dev libboost-program-options-dev libboost-system-dev libavcodec-dev libavformat-dev libavutil-dev libswscale-dev cmake build-essential libqt5opengl5-dev".split()
 REDHAT_PKGS = "openal-devel SDL2-devel qt5-devel boost-filesystem git boost-thread boost-program-options boost-system ffmpeg-devel ffmpeg-libs gcc-c++ tinyxml-devel cmake".split()
 UBUNTU_PKGS = ["libfreetype6-dev", "libbz2-dev", "liblzma-dev"] + DEBIAN_PKGS
-VOID_PKGS = "boost-devel bullet-devel cmake ffmpeg-devel freetype-devel gcc git libavformat libavutil libmygui-devel libopenal-devel libopenjpeg2-devel libswresample libswscale libunshield-devel libtxc_dxtn liblzma-devel libXt-devel make nasm ois-devel pkg-config python-devel python3-devel qt5-devel SDL2-devel zlib-devel".split()
+VOID_PKGS = "SDL2-devel boost-devel bullet-devel cmake ffmpeg-devel freetype-devel gcc git libXt-devel libavformat libavutil libmygui-devel libopenal-devel libopenjpeg2-devel libswresample libswscale libtxc_liblzma-devel libunshield-devel python-devel python3-devel qt5-devel zlib-devel".split()
 
 PROG = "build-openmw"
-VERSION = "1.8"
+VERSION = "1.9"
 
 
 def emit_log(msg: str, level=logging.INFO, quiet=False, *args, **kwargs) -> None:
@@ -388,10 +388,10 @@ def make_portable_package(
             "/usr/lib/x86_64-linux-gnu/libavformat.so",
             "/usr/lib/x86_64-linux-gnu/libavutil.so",
             # TODO: These numbers are likely specific to Debian 9
-            "/usr/lib/x86_64-linux-gnu/libboost_filesystem.so.1.62.0",
-            "/usr/lib/x86_64-linux-gnu/libboost_program_options.so.1.62.0",
-            "/usr/lib/x86_64-linux-gnu/libboost_system.so.1.62.0",
-            "/usr/lib/x86_64-linux-gnu/libboost_thread.so.1.62.0",
+            "/usr/lib/x86_64-linux-gnu/libboost_filesystem.so.1.67.0",
+            "/usr/lib/x86_64-linux-gnu/libboost_program_options.so.1.67.0",
+            "/usr/lib/x86_64-linux-gnu/libboost_system.so.1.67.0",
+            "/usr/lib/x86_64-linux-gnu/libboost_thread.so.1.67.0",
             "/usr/lib/x86_64-linux-gnu/libswresample.so",
             "/usr/lib/x86_64-linux-gnu/libswscale.so",
             "/usr/lib/x86_64-linux-gnu/libSDL2.so",
@@ -515,6 +515,7 @@ def install_packages(distro: str, **kwargs) -> bool:
         quiet=quiet,
     )
     user_uid = os.getuid()
+    # TODO: install system OSG as needed..
     if "void" in distro.lower():
         emit_log("Distro detected as 'Void Linux'")
         cmd = ["xbps-install", "--yes"] + VOID_PKGS
