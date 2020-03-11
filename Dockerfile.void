@@ -1,0 +1,21 @@
+FROM voidlinux/voidlinux
+
+# Replace with a closer mirror as needed
+RUN echo "repository=https://mirrors.servercentral.com/voidlinux/current" > /etc/xbps.d/00-repository-main.conf && xbps-install -S
+
+# Update xbps in case it's needed
+RUN xbps-install -uy xbps
+
+# Pre-install all build dependencies
+RUN xbps-install -uy MesaLib-devel SDL2-devel SDL2-devel boost-devel \
+    bullet-devel cmake ffmpeg-devel ffmpeg-devel gcc giflib-devel git \
+    gst-plugins-base1-devel gtkglext-devel jasper-devel libXt-devel \
+    libcurl-devel libgdal-devel libgta-devel libmygui-devel libopenal-devel \
+    libopenexr-devel librsvg-devel libunshield-devel make pkg-config \
+    poppler-glib-devel qt5-devel qt5-devel tiff-devel xine-lib-devel xorg xrandr
+
+# Add the script
+ADD build-openmw.py /root/
+
+# Run the script
+ENTRYPOINT [ "/root/build-openmw.py", "--verbose" ]
