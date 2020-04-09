@@ -1225,7 +1225,10 @@ def main() -> None:
         else:
             full_args = build_args
 
-        full_args.append("-DOPENMW_LTO_BUILD=1")
+        # Don't build the save importer..
+        full_args.append("-DBUILD_ESSIMPORTER=no")
+
+        os.environ["OPENMW_LTO_BUILD"] = "on"
 
         build_library(
             openmw,
