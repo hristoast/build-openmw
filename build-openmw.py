@@ -916,6 +916,7 @@ def main() -> None:
         emit_log("Skipping OSG-OPENMW build")
     elif not system_osg:
         # OSG-OPENMW
+
         build_library(
             "osg-openmw",
             check_file=os.path.join(install_prefix, "osg-openmw", "lib64", "libosg.so"),
@@ -925,7 +926,7 @@ def main() -> None:
                 "-DBUILD_OSG_PLUGIN_DDS=1",
                 "-DBUILD_OSG_PLUGIN_TGA=1",
                 "-DBUILD_OSG_PLUGIN_BMP=1",
-                # "-DBUILD_OSG_PLUGIN_JPEG=1",
+                "-DBUILD_OSG_PLUGIN_JPEG=1",
                 "-DBUILD_OSG_PLUGIN_PNG=1",
                 "-DBUILD_OSG_DEPRECATED_SERIALIZERS=0",
             ],
