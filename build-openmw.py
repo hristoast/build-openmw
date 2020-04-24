@@ -693,6 +693,31 @@ def parse_argv() -> None:
         help="Also clone down the CoreScripts repo.",
     )
     options.add_argument(
+        "--with-essimporter",
+        action="store_true",
+        help="Do build the ess importer. (Default: false)",
+    )
+    options.add_argument(
+        "--without-cs",
+        action="store_true",
+        help="Do not build OpenMW-CS. (Default: false)",
+    )
+    options.add_argument(
+        "--without-iniimporter",
+        action="store_true",
+        help="Do not build INI Importer. (Default: false)",
+    )
+    options.add_argument(
+        "--without-launcher",
+        action="store_true",
+        help="Do not build the OpenMW launcher. (Default: false)",
+    )
+    options.add_argument(
+        "--without-wizard",
+        action="store_true",
+        help="Do not build the install wizard. (Default: false)",
+    )
+    options.add_argument(
         "-v", "--verbose", action="store_true", help="Enable verbose output."
     )
 
@@ -732,6 +757,11 @@ def main() -> None:
     sha = None
     tag = None
     branch = "master"
+    with_essimporter = False
+    without_cs = False
+    without_iniimporter = False
+    without_launcher = False
+    without_wizard = False
 
     if parsed.force_all:
         force_bullet = True
@@ -832,6 +862,16 @@ def main() -> None:
         emit_log("Verbose output enabled")
     if parsed.with_corescripts:
         with_corescripts = True
+    if parsed.with_essimporter:
+        with_essimporter = True
+    if parsed.without_cs:
+        without_cs = True
+    if parsed.without_iniimporter:
+        without_iniimporter = True
+    if parsed.without_launcher:
+        without_launcher = True
+    if parsed.without_wizard:
+        without_wizard = True
     if parsed.branch:
         branch = rev = parsed.branch
         if "/" not in branch:
@@ -1201,7 +1241,24 @@ def main() -> None:
             full_args = build_args
 
         # Don't build the save importer..
-        full_args.append("-DBUILD_ESSIMPORTER=no")
+        if not with_essimporter:
+            full_args.append("-DBUILD_ESSIMPORTER=no")
+
+        if without_cs:
+            emit_log("NOT building the openmw-cs executable ...")
+            full_args.append("-DBUILD_OPENCS=no")
+
+        if without_iniimporter:
+            emit_log("NOT building the openmw-iniimporter executable ...")
+            full_args.append("-DBUILD_MWINIIMPORTER=no")
+
+        if without_launcher:
+            emit_log("NOT building the openmw-launcher executable ...")
+            full_args.append("-DBUILD_LAUNCHER=no")
+
+        if without_wizard:
+            emit_log("NOT building the openmw-wizard executable ...")
+            full_args.append("-DBUILD_WIZARD=no")
 
         os.environ["OPENMW_LTO_BUILD"] = "on"
 
