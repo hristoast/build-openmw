@@ -27,13 +27,13 @@ OUT_DIR = os.getenv("HOME")
 SRC_DIR = os.path.join(INSTALL_PREFIX, "src")
 
 ARCH_PKGS = "".split()
-DEBIAN_PKGS = "git libopenal-dev libsdl2-dev qt5-default libfreetype6-dev libboost-filesystem-dev libboost1.71-dev libboost-thread-dev libboost-program-options-dev libboost-system-dev libavcodec-dev libavformat-dev libavutil-dev libswscale-dev cmake build-essential libqt5opengl5-dev".split()
+DEBIAN_PKGS = "git libopenal-dev libbullet-dev libsdl2-dev qt5-default libfreetype6-dev libboost-filesystem-dev libboost1.71-dev libboost-thread-dev libboost-program-options-dev libboost-system-dev libavcodec-dev libavformat-dev libavutil-dev libswscale-dev cmake build-essential libqt5opengl5-dev".split()
 REDHAT_PKGS = "openal-devel SDL2-devel qt5-devel boost-filesystem git boost-thread boost-program-options boost-system ffmpeg-devel ffmpeg-libs gcc-c++ tinyxml-devel cmake".split()
 UBUNTU_PKGS = ["libfreetype6-dev", "libbz2-dev", "liblzma-dev"] + DEBIAN_PKGS
 VOID_PKGS = "SDL2-devel boost-devel bullet-devel cmake ffmpeg-devel freetype-devel gcc git libXt-devel libavformat libavutil libmygui-devel libopenal-devel libopenjpeg2-devel libswresample libswscale libtxc_liblzma-devel libunshield-devel python-devel python3-devel qt5-devel zlib-devel".split()
 
 PROG = "build-openmw"
-VERSION = "1.9"
+VERSION = "1.10"
 
 
 def emit_log(msg: str, level=logging.INFO, quiet=False, *args, **kwargs) -> None:
@@ -382,7 +382,7 @@ def make_portable_package(
         )
 
     # This part is totally untested
-    elif "Ubuntu" in distro or "Debian in distro":
+    elif "Ubuntu" in distro or "Debian" in distro:
         system_libs = (
             "/usr/lib/x86_64-linux-gnu/libavcodec.so",
             "/usr/lib/x86_64-linux-gnu/libavformat.so",
@@ -890,7 +890,7 @@ def main() -> None:
                 "-DBUILD_OSG_PLUGIN_DDS=1",
                 "-DBUILD_OSG_PLUGIN_TGA=1",
                 "-DBUILD_OSG_PLUGIN_BMP=1",
-                "-DBUILD_OSG_PLUGIN_JPEG=1",
+                # "-DBUILD_OSG_PLUGIN_JPEG=1",
                 "-DBUILD_OSG_PLUGIN_PNG=1",
                 "-DBUILD_OSG_DEPRECATED_SERIALIZERS=0",
             ],
@@ -1176,7 +1176,24 @@ def main() -> None:
 
         build_env["CMAKE_PREFIX_PATH"] = prefix_path.format(install_prefix)
 
-        build_env["LDFLAGS"] = "-llzma -lz -lbz2"
+        distro = None
+        try:
+            out, err = get_distro()
+            if err:
+                error_and_die(err.decode())
+            distro = out.decode().split(":")[1].strip()
+        except FileNotFoundError:
+            if skip_install_pkgs:
+                pass
+            else:
+                error_and_die(
+                    "Unable to determine your distro to install dependencies!  Try again and use '-S' if you know what you are doing."
+                )
+
+        if distro and "Ubuntu" in distro or "Debian" in distro:
+            build_env["LDFLAGS"] = "-lz -lbz2"
+        else:
+            build_env["LDFLAGS"] = "-llzma -lz -lbz2"
 
         if system_osg:
             build_args = [
