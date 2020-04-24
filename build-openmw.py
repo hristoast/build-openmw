@@ -465,10 +465,10 @@ def make_portable_package(
         emit_log("Copying {0} to {1}".format(lib, pkg_libs), level=logging.DEBUG)
         shutil.copy(lib, pkg_libs)
 
-    emit_log("Copying tes3mp libs")
-    for lib in tes3mp_libs:
-        emit_log("Copying {0} to {1}".format(lib, pkg_libs), level=logging.DEBUG)
-        shutil.copy(lib, pkg_libs)
+    # emit_log("Copying tes3mp libs")
+    # for lib in tes3mp_libs:
+    #     emit_log("Copying {0} to {1}".format(lib, pkg_libs), level=logging.DEBUG)
+    #     shutil.copy(lib, pkg_libs)
 
     emit_log("Copying resources")
     shutil.copytree(
@@ -631,6 +631,13 @@ def parse_argv() -> None:
         action="store_true",
         help="Use the system-provided OSG instead of the OpenMW forked one.",
     )
+    # TODO: Don't hardcode the OSG branch, use the below flag.
+    # options.add_argument(
+    #     "--openmw-osg-branch",
+    #     action="store_true",
+    #     help="Specify the OpenMW OSG fork branch to build.  Default: "
+    #     + OPENMW_OSG_BRANCH,
+    # )
     options.add_argument(
         "--install-prefix",
         help="Set the install prefix. Default: {}".format(INSTALL_PREFIX),
@@ -1226,8 +1233,6 @@ def main() -> None:
         if make_pkg:
             make_portable_package(openmw, distro, force=force_pkg, out_dir=out_dir)
 
-    # emit_log("END {0} run at {1}".format(
-    #     PROG, datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
     end = datetime.datetime.now()
     duration = end - start
     minutes = int(duration.total_seconds() // 60)
