@@ -14,7 +14,7 @@ MYGUI_VERSION = "3.2.2"
 UNSHIELD_VERSION = "1.4.2"
 
 OPENMW_OSG_BRANCH = "3.4"
-UPSTREAM_OSG_VERSION = "OpenSceneGraph-3.6.5"
+UPSTREAM_OSG_VERSION = "3.6.5"
 
 TES3MP_CORESCRIPTS_VERSION = "0.7.0"
 
@@ -133,12 +133,10 @@ def build_library(
                     libname, rev=OPENMW_OSG_BRANCH
                 )
             )
-            execute_shell(["git", "checkout", UPSTREAM_OSG_VERSION], verbose=verbose)
             execute_shell(
-                ["git", "reset", "--hard", "origin/" + UPSTREAM_OSG_VERSION],
+                ["git", "checkout", "OpenSceneGraph-" + UPSTREAM_OSG_VERSION],
                 verbose=verbose,
             )
-
         else:
             emit_log(
                 "{} resetting source to the desired rev ({rev})".format(
@@ -185,6 +183,7 @@ def build_library(
             emit_log("{} building with cmake".format(libname))
             build_dir = os.path.join(src_dir, clone_dest, "build")
             if os.path.isdir(build_dir):
+                emit_log("Removing dir tree: " + build_dir)
                 shutil.rmtree(build_dir)
             os.mkdir(build_dir)
             os.chdir(build_dir)
@@ -221,28 +220,121 @@ def build_library(
 
 def format_openmw_cmake_args(bullet_path: str, osg_path: str, use_bullet=False) -> list:
     if osg_path:
-        args = [
-            "-DOPENTHREADS_INCLUDE_DIR={}/include".format(osg_path),
-            "-DOPENTHREADS_LIBRARY={}/lib64/libOpenThreads.so".format(osg_path),
-            "-DOSG_INCLUDE_DIR={}/include".format(osg_path),
-            "-DOSG_LIBRARY={}/lib64/libosg.so".format(osg_path),
-            "-DOSGANIMATION_INCLUDE_DIR={}/include".format(osg_path),
-            "-DOSGANIMATION_LIBRARY={}/lib64/libosgAnimation.so".format(osg_path),
-            "-DOSGDB_INCLUDE_DIR={}/include".format(osg_path),
-            "-DOSGDB_LIBRARY={}/lib64/libosgDB.so".format(osg_path),
-            "-DOSGFX_INCLUDE_DIR={}/include".format(osg_path),
-            "-DOSGFX_LIBRARY={}/lib64/libosgFX.so".format(osg_path),
-            "-DOSGGA_INCLUDE_DIR={}/include".format(osg_path),
-            "-DOSGGA_LIBRARY={}/lib64/libosgGA.so".format(osg_path),
-            "-DOSGPARTICLE_INCLUDE_DIR={}/include".format(osg_path),
-            "-DOSGPARTICLE_LIBRARY={}/lib64/libosgParticle.so".format(osg_path),
-            "-DOSGTEXT_INCLUDE_DIR={}/include".format(osg_path),
-            "-DOSGTEXT_LIBRARY={}/lib64/libosgText.so".format(osg_path),
-            "-DOSGUTIL_INCLUDE_DIR={}/include".format(osg_path),
-            "-DOSGUTIL_LIBRARY={}/lib64/libosgUtil.so".format(osg_path),
-            "-DOSGVIEWER_INCLUDE_DIR={}/include".format(osg_path),
-            "-DOSGVIEWER_LIBRARY={}/lib64/libosgViewer.so".format(osg_path),
-        ]
+        if osg_path.endswith("/osg-openmw"):
+            lib = "lib64"
+            args = [
+                "-DOPENTHREADS_INCLUDE_DIR={osg}/include".format(osg=osg_path),
+                "-DOPENTHREADS_LIBRARY={osg}/{lib}/libOpenThreads.so".format(
+                    lib=lib, osg=osg_path
+                ),
+                "-DOSG_INCLUDE_DIR={osg}/include".format(osg=osg_path),
+                "-DOSG_LIBRARY={osg}/{lib}/libosg.so".format(lib=lib, osg=osg_path),
+                # "-DOSGANIMATION_INCLUDE_DIR={osg}/include".format(osg=osg_path),
+                # "-DOSGANIMATION_LIBRARY={osg}/{lib}/libosgAnimation.so".format(
+                #     lib=lib, osg=osg_path
+                # ),
+                "-DOSGDB_INCLUDE_DIR={osg}/include".format(osg=osg_path),
+                "-DOSGDB_LIBRARY={osg}/{lib}/libosgDB.so".format(lib=lib, osg=osg_path),
+                "-DOSGFX_INCLUDE_DIR={osg}/include".format(osg=osg_path),
+                "-DOSGFX_LIBRARY={osg}/{lib}/libosgFX.so".format(lib=lib, osg=osg_path),
+                "-DOSGGA_INCLUDE_DIR={osg}/include".format(osg=osg_path),
+                "-DOSGGA_LIBRARY={osg}/{lib}/libosgGA.so".format(lib=lib, osg=osg_path),
+                "-DOSGPARTICLE_INCLUDE_DIR={osg}/include".format(osg=osg_path),
+                "-DOSGPARTICLE_LIBRARY={osg}/{lib}/libosgParticle.so".format(
+                    lib=lib, osg=osg_path
+                ),
+                "-DOSGTEXT_INCLUDE_DIR={osg}/include".format(osg=osg_path),
+                "-DOSGTEXT_LIBRARY={osg}/{lib}/libosgText.so".format(
+                    lib=lib, osg=osg_path
+                ),
+                "-DOSGUTIL_INCLUDE_DIR={osg}/include".format(osg=osg_path),
+                "-DOSGUTIL_LIBRARY={osg}/{lib}/libosgUtil.so".format(
+                    lib=lib, osg=osg_path
+                ),
+                "-DOSGVIEWER_INCLUDE_DIR={osg}/include".format(osg=osg_path),
+                "-DOSGVIEWER_LIBRARY={osg}/{lib}/libosgViewer.so".format(
+                    lib=lib, osg=osg_path
+                ),
+            ]
+        elif osg_path.endswith("/osg"):
+            lib = "lib"
+            # args = [
+            #     "-DOSG_LIB_DIR={osg}/{lib}".format(lib=lib, osg=osg_path),
+            #     "-DOSG_PLUGINS_DIR={osg}/{lib}/osgPlugins-{ver}".format(
+            #         lib=lib, osg=osg_path, ver=UPSTREAM_OSG_VERSION
+            #     ),
+            # ]
+
+            args = [
+                "-DOPENTHREADS_INCLUDE_DIR={osg}/include".format(osg=osg_path),
+                "-DOPENTHREADS_LIBRARY={osg}/{lib}/libOpenThreads.so".format(
+                    lib=lib, osg=osg_path
+                ),
+                "-DOSG_INCLUDE_DIR={osg}/include".format(osg=osg_path),
+                "-DOSG_LIBRARY={osg}/{lib}/libosg.so".format(lib=lib, osg=osg_path),
+                # "-DOSGANIMATION_INCLUDE_DIR={osg}/include".format(osg=osg_path),
+                # "-DOSGANIMATION_LIBRARY={osg}/{lib}/libosgAnimation.so".format(
+                #     lib=lib, osg=osg_path
+                # ),
+                "-DOSGDB_INCLUDE_DIR={osg}/include".format(osg=osg_path),
+                "-DOSGDB_LIBRARY={osg}/{lib}/libosgDB.so".format(lib=lib, osg=osg_path),
+                "-DOSGFX_INCLUDE_DIR={osg}/include".format(osg=osg_path),
+                "-DOSGFX_LIBRARY={osg}/{lib}/libosgFX.so".format(lib=lib, osg=osg_path),
+                "-DOSGGA_INCLUDE_DIR={osg}/include".format(osg=osg_path),
+                "-DOSGGA_LIBRARY={osg}/{lib}/libosgGA.so".format(lib=lib, osg=osg_path),
+                "-DOSGPARTICLE_INCLUDE_DIR={osg}/include".format(osg=osg_path),
+                "-DOSGPARTICLE_LIBRARY={osg}/{lib}/libosgParticle.so".format(
+                    lib=lib, osg=osg_path
+                ),
+                "-DOSGTEXT_INCLUDE_DIR={osg}/include".format(osg=osg_path),
+                "-DOSGTEXT_LIBRARY={osg}/{lib}/libosgText.so".format(
+                    lib=lib, osg=osg_path
+                ),
+                "-DOSGUTIL_INCLUDE_DIR={osg}/include".format(osg=osg_path),
+                "-DOSGUTIL_LIBRARY={osg}/{lib}/libosgUtil.so".format(
+                    lib=lib, osg=osg_path
+                ),
+                "-DOSGVIEWER_INCLUDE_DIR={osg}/include".format(osg=osg_path),
+                "-DOSGVIEWER_LIBRARY={osg}/{lib}/libosgViewer.so".format(
+                    lib=lib, osg=osg_path
+                ),
+            ]
+
+            # args = [
+            #     "-DOPENTHREADS_INCLUDE_DIR={osg}/include/OpenThreads".format(
+            #         osg=osg_path
+            #     ),
+            #     "-DOPENTHREADS_LIBRARY={osg}/{lib}/libOpenThreads.so".format(
+            #         lib=lib, osg=osg_path
+            #     ),
+            #     "-DOSG_INCLUDE_DIR={osg}/include/osg".format(osg=osg_path),
+            #     "-DOSG_LIBRARY={osg}/{lib}/libosg.so".format(lib=lib, osg=osg_path),
+            #     "-DOSGDB_INCLUDE_DIR={osg}/include/osgDB".format(osg=osg_path),
+            #     "-DOSGDB_LIBRARY={osg}/{lib}/libosgDB.so".format(lib=lib, osg=osg_path),
+            #     "-DOSGFX_INCLUDE_DIR={osg}/include/osgFX".format(osg=osg_path),
+            #     "-DOSGFX_LIBRARY={osg}/{lib}/libosgFX.so".format(lib=lib, osg=osg_path),
+            #     "-DOSGGA_INCLUDE_DIR={osg}/include/osgGA".format(osg=osg_path),
+            #     "-DOSGGA_LIBRARY={osg}/{lib}/libosgGA.so".format(lib=lib, osg=osg_path),
+            #     "-DOSGPARTICLE_INCLUDE_DIR={osg}/include/osgParticle".format(
+            #         osg=osg_path
+            #     ),
+            #     "-DOSGPARTICLE_LIBRARY={osg}/{lib}/libosgParticle.so".format(
+            #         lib=lib, osg=osg_path
+            #     ),
+            #     "-DOSGTEXT_INCLUDE_DIR={osg}/include/osgText".format(osg=osg_path),
+            #     "-DOSGTEXT_LIBRARY={osg}/{lib}/libosgText.so".format(
+            #         lib=lib, osg=osg_path
+            #     ),
+            #     "-DOSGUTIL_INCLUDE_DIR={osg}/include/osgUtil".format(osg=osg_path),
+            #     "-DOSGUTIL_LIBRARY={osg}/{lib}/libosgUtil.so".format(
+            #         lib=lib, osg=osg_path
+            #     ),
+            #     "-DOSGVIEWER_INCLUDE_DIR={osg}/include/osgViewer".format(osg=osg_path),
+            #     "-DOSGVIEWER_LIBRARY={osg}/{lib}/libosgViewer.so".format(
+            #         lib=lib, osg=osg_path
+            #     ),
+            # ]
+
     else:
         args = []
     if use_bullet:
@@ -934,13 +1026,10 @@ def main() -> None:
     ensure_dir(install_prefix)
     ensure_dir(src_dir)
 
-    # if make_pkg and os.getenv("TES3MP_FORGE"):
-    #     emit_log("Skipping OSG-OPENMW build")
-    # elif not system_osg:
     if build_upstream_osg:
         build_library(
             "osg",
-            check_file=os.path.join(install_prefix, "osg", "lib64", "libosg.so"),
+            check_file=os.path.join(install_prefix, "osg", "lib", "libosg.so.3.6.5"),
             cmake_args=[
                 "-DBUILD_OSG_PLUGINS_BY_DEFAULT=0",
                 "-DBUILD_OSG_PLUGIN_OSG=1",
@@ -1112,7 +1201,9 @@ def main() -> None:
                 )
 
             else:
-                if system_osg:
+                if build_upstream_osg:
+                    osg = os.path.join(INSTALL_PREFIX, "osg")
+                elif system_osg:
                     osg = None
                 else:
                     osg = os.path.join(INSTALL_PREFIX, "osg-openmw")
@@ -1239,52 +1330,29 @@ def main() -> None:
         else:
             build_env["LDFLAGS"] = "-llzma -lz -lbz2"
 
-        if system_osg:
-            build_args = [
-                "-DBOOST_ROOT=/usr/include/boost",
-                "-DCMAKE_BUILD_TYPE=MinSizeRel",
-                "-DDESIRED_QT_VERSION=5",
-            ]
+        build_args = [
+            "-DBOOST_ROOT=/usr/include/boost",
+            "-DCMAKE_BUILD_TYPE=MinSizeRel",
+            "-DDESIRED_QT_VERSION=5",
+        ]
+
+        if build_upstream_osg:
+            osg = os.path.join(INSTALL_PREFIX, "osg")
+        elif system_osg:
+            osg = None
         else:
             osg = os.path.join(INSTALL_PREFIX, "osg-openmw")
-            build_args = [
-                "-DBOOST_ROOT=/usr/include/boost",
-                "-DCMAKE_BUILD_TYPE=MinSizeRel",
-                "-DDESIRED_QT_VERSION=5",
-                "-DOPENTHREADS_INCLUDE_DIR={}/include".format(osg),
-                "-DOPENTHREADS_LIBRARY={}/lib64/libOpenThreads.so".format(osg),
-                "-DOSG_INCLUDE_DIR={}/include".format(osg),
-                "-DOSG_LIBRARY={}/lib64/libosg.so".format(osg),
-                "-DOSGANIMATION_INCLUDE_DIR={}/include".format(osg),
-                "-DOSGANIMATION_LIBRARY={}/lib64/libosgAnimation.so".format(osg),
-                "-DOSGDB_INCLUDE_DIR={}/include".format(osg),
-                "-DOSGDB_LIBRARY={}/lib64/libosgDB.so".format(osg),
-                "-DOSGFX_INCLUDE_DIR={}/include".format(osg),
-                "-DOSGFX_LIBRARY={}/lib64/libosgFX.so".format(osg),
-                "-DOSGGA_INCLUDE_DIR={}/include".format(osg),
-                "-DOSGGA_LIBRARY={}/lib64/libosgGA.so".format(osg),
-                "-DOSGPARTICLE_INCLUDE_DIR={}/include".format(osg),
-                "-DOSGPARTICLE_LIBRARY={}/lib64/libosgParticle.so".format(osg),
-                "-DOSGTEXT_INCLUDE_DIR={}/include".format(osg),
-                "-DOSGTEXT_LIBRARY={}/lib64/libosgText.so".format(osg),
-                "-DOSGUTIL_INCLUDE_DIR={}/include".format(osg),
-                "-DOSGUTIL_LIBRARY={}/lib64/libosgUtil.so".format(osg),
-                "-DOSGVIEWER_INCLUDE_DIR={}/include".format(osg),
-                "-DOSGVIEWER_LIBRARY={}/lib64/libosgViewer.so".format(osg),
-            ]
 
         if build_bullet or force_bullet:
+            use_bullet = True
             bullet = os.path.join(INSTALL_PREFIX, "bullet")
-            bullet_args = [
-                "-DBullet_INCLUDE_DIR={}/include/bullet".format(bullet),
-                "-DBullet_BulletCollision_LIBRARY={}/lib/libBulletCollision.so".format(
-                    bullet
-                ),
-                "-DBullet_LinearMath_LIBRARY={}/lib/libLinearMath.so".format(bullet),
-            ]
-            full_args = build_args + bullet_args
         else:
-            full_args = build_args
+            use_bullet = False
+            bullet = ""
+
+        full_args = build_args + format_openmw_cmake_args(
+            bullet, osg, use_bullet=use_bullet
+        )
 
         # Don't build the save importer..
         if not with_essimporter:
