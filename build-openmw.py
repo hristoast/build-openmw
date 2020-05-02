@@ -137,7 +137,7 @@ def build_library(
                 ["git", "checkout", "OpenSceneGraph-" + UPSTREAM_OSG_VERSION],
                 verbose=verbose,
             )
-        else:
+        elif libname != "osg-openmw":
             emit_log(
                 "{} resetting source to the desired rev ({rev})".format(
                     libname, rev=version
