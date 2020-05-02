@@ -14,11 +14,12 @@ MYGUI_VERSION = "3.2.2"
 UNSHIELD_VERSION = "1.4.2"
 
 OPENMW_OSG_BRANCH = "3.4"
+UPSTREAM_OSG_VERSION = "OpenSceneGraph-3.6.5"
 
 TES3MP_CORESCRIPTS_VERSION = "0.7.0"
 
 CPUS = os.cpu_count() + 1
-INSTALL_PREFIX = os.path.join("/", "opt", "morrowind")
+INSTALL_PREFIX = os.path.join("/", "opt", "build-openmw")
 DESC = "Build OpenMW for your system, install it all to {}.  Also builds the OpenMW fork of OSG, and optionally libBullet, Unshield, and MyGUI, and links against those builds.".format(
     INSTALL_PREFIX
 )
@@ -123,6 +124,18 @@ def build_library(
             execute_shell(["git", "checkout", OPENMW_OSG_BRANCH], verbose=verbose)
             execute_shell(
                 ["git", "reset", "--hard", "origin/" + OPENMW_OSG_BRANCH],
+                verbose=verbose,
+            )
+
+        if libname == "osg":
+            emit_log(
+                "{} resetting source to the desired rev ({rev})".format(
+                    libname, rev=OPENMW_OSG_BRANCH
+                )
+            )
+            execute_shell(["git", "checkout", UPSTREAM_OSG_VERSION], verbose=verbose)
+            execute_shell(
+                ["git", "reset", "--hard", "origin/" + UPSTREAM_OSG_VERSION],
                 verbose=verbose,
             )
 
@@ -593,6 +606,11 @@ def parse_argv() -> None:
         help="Build MyGUI, rather than use the system package.",
     )
     options.add_argument(
+        "--build-upstream-osg",
+        action="store_true",
+        help="Build upstream OSG, rather than use the OpenMW fork.",
+    )
+    options.add_argument(
         "--build-unshield",
         action="store_true",
         help="Build libunshield, rather than use the system package.",
@@ -732,6 +750,7 @@ def main() -> None:
     distro = None
     build_bullet = False
     build_mygui = False
+    build_upstream_osg = False
     build_unshield = False
     force_bullet = False
     force_mygui = False
@@ -785,6 +804,9 @@ def main() -> None:
     if parsed.build_mygui:
         build_mygui = True
         emit_log("Building MyGUI")
+    if parsed.build_upstream_osg:
+        build_upstream_osg = True
+        emit_log("Building upstream OSG")
     if parsed.build_unshield:
         build_unshield = True
         emit_log("Building Unshield")
@@ -912,8 +934,31 @@ def main() -> None:
     ensure_dir(install_prefix)
     ensure_dir(src_dir)
 
-    if make_pkg and os.getenv("TES3MP_FORGE"):
-        emit_log("Skipping OSG-OPENMW build")
+    # if make_pkg and os.getenv("TES3MP_FORGE"):
+    #     emit_log("Skipping OSG-OPENMW build")
+    # elif not system_osg:
+    if build_upstream_osg:
+        build_library(
+            "osg",
+            check_file=os.path.join(install_prefix, "osg", "lib64", "libosg.so"),
+            cmake_args=[
+                "-DBUILD_OSG_PLUGINS_BY_DEFAULT=0",
+                "-DBUILD_OSG_PLUGIN_OSG=1",
+                "-DBUILD_OSG_PLUGIN_DDS=1",
+                "-DBUILD_OSG_PLUGIN_TGA=1",
+                "-DBUILD_OSG_PLUGIN_BMP=1",
+                "-DBUILD_OSG_PLUGIN_JPEG=1",
+                "-DBUILD_OSG_PLUGIN_PNG=1",
+                "-DBUILD_OSG_DEPRECATED_SERIALIZERS=0",
+            ],
+            cpus=cpus,
+            force=force_osg,
+            git_url="https://github.com/openscenegraph/OpenSceneGraph.git",
+            install_prefix=install_prefix,
+            src_dir=src_dir,
+            verbose=verbose,
+        )
+
     elif not system_osg:
         # OSG-OPENMW
 

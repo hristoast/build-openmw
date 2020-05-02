@@ -12,7 +12,7 @@ The script requires Python 3.3 or higher and can be ran directly out of a cloned
 
 To uninstall what was installed by this:
 
-    rm -rf /opt/morrowind/*
+    rm -rf /opt/build-openmw/*
     
 You'll be left with an empty directory.  If you've used a different install prefix, then adjust your delete command appropriately.
 
