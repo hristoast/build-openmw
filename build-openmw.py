@@ -6,8 +6,6 @@ import os
 import shutil
 import subprocess
 import sys
-import tarfile
-import tempfile
 
 
 BULLET_VERSION = "2.86.1"
@@ -15,7 +13,6 @@ MYGUI_VERSION = "3.2.2"
 UNSHIELD_VERSION = "1.4.2"
 
 OPENMW_OSG_BRANCH = "OpenSceneGraph-3.6"
-UPSTREAM_OSG_VERSION = "3.6.5"
 
 TES3MP_CORESCRIPTS_VERSION = "0.7.0"
 
@@ -29,7 +26,8 @@ OUT_DIR = os.getenv("HOME")
 SRC_DIR = os.path.join(INSTALL_PREFIX, "src")
 
 ARCH_PKGS = "".split()
-DEBIAN_PKGS = "cmake git libopenal-dev libbullet-dev libsdl2-dev qt5-default libfreetype6-dev libavcodec-dev libavformat-dev libavutil-dev libswscale-dev cmake build-essential libqt5opengl5-dev".split()
+# TODO: conditionally add bullet and unshield
+DEBIAN_PKGS = "cmake git libopenal-dev libbullet-dev libsdl2-dev qt5-default libfreetype6-dev libavcodec-dev libavformat-dev libavutil-dev libswscale-dev cmake build-essential libqt5opengl5-dev libunshield-dev libbullet-dev".split()
 REDHAT_PKGS = "openal-devel SDL2-devel qt5-devel boost-filesystem git boost-thread boost-program-options boost-system ffmpeg-devel ffmpeg-libs gcc-c++ tinyxml-devel cmake".split()
 UBUNTU_PKGS = (
     ["libfreetype6-dev", "libbz2-dev", "liblzma-dev"]
@@ -52,7 +50,7 @@ DEBIAN_PKGS += [
 VOID_PKGS = "SDL2-devel boost-devel bullet-devel cmake ffmpeg-devel freetype-devel gcc git libXt-devel libavformat libavutil libmygui-devel libopenal-devel libopenjpeg2-devel libswresample libswscale libtxc_liblzma-devel libunshield-devel python-devel python3-devel qt5-devel zlib-devel".split()
 
 PROG = "build-openmw"
-VERSION = "1.10"
+VERSION = "1.11"
 
 
 def emit_log(msg: str, level=logging.INFO, quiet=False, *args, **kwargs) -> None:
@@ -145,16 +143,6 @@ def build_library(
                 verbose=verbose,
             )
 
-        if libname == "osg":
-            emit_log(
-                "{} resetting source to the desired rev ({rev})".format(
-                    libname, rev=OPENMW_OSG_BRANCH
-                )
-            )
-            execute_shell(
-                ["git", "checkout", "OpenSceneGraph-" + UPSTREAM_OSG_VERSION],
-                verbose=verbose,
-            )
         elif libname != "osg-openmw":
             emit_log(
                 "{} resetting source to the desired rev ({rev})".format(
@@ -238,120 +226,37 @@ def build_library(
 
 def format_openmw_cmake_args(bullet_path: str, osg_path: str, use_bullet=False) -> list:
     if osg_path:
-        if osg_path.endswith("/osg-openmw"):
-            lib = "lib64"
-            args = [
-                "-DOPENTHREADS_INCLUDE_DIR={osg}/include".format(osg=osg_path),
-                "-DOPENTHREADS_LIBRARY={osg}/{lib}/libOpenThreads.so".format(
-                    lib=lib, osg=osg_path
-                ),
-                "-DOSG_INCLUDE_DIR={osg}/include".format(osg=osg_path),
-                "-DOSG_LIBRARY={osg}/{lib}/libosg.so".format(lib=lib, osg=osg_path),
-                # "-DOSGANIMATION_INCLUDE_DIR={osg}/include".format(osg=osg_path),
-                # "-DOSGANIMATION_LIBRARY={osg}/{lib}/libosgAnimation.so".format(
-                #     lib=lib, osg=osg_path
-                # ),
-                "-DOSGDB_INCLUDE_DIR={osg}/include".format(osg=osg_path),
-                "-DOSGDB_LIBRARY={osg}/{lib}/libosgDB.so".format(lib=lib, osg=osg_path),
-                "-DOSGFX_INCLUDE_DIR={osg}/include".format(osg=osg_path),
-                "-DOSGFX_LIBRARY={osg}/{lib}/libosgFX.so".format(lib=lib, osg=osg_path),
-                "-DOSGGA_INCLUDE_DIR={osg}/include".format(osg=osg_path),
-                "-DOSGGA_LIBRARY={osg}/{lib}/libosgGA.so".format(lib=lib, osg=osg_path),
-                "-DOSGPARTICLE_INCLUDE_DIR={osg}/include".format(osg=osg_path),
-                "-DOSGPARTICLE_LIBRARY={osg}/{lib}/libosgParticle.so".format(
-                    lib=lib, osg=osg_path
-                ),
-                "-DOSGTEXT_INCLUDE_DIR={osg}/include".format(osg=osg_path),
-                "-DOSGTEXT_LIBRARY={osg}/{lib}/libosgText.so".format(
-                    lib=lib, osg=osg_path
-                ),
-                "-DOSGUTIL_INCLUDE_DIR={osg}/include".format(osg=osg_path),
-                "-DOSGUTIL_LIBRARY={osg}/{lib}/libosgUtil.so".format(
-                    lib=lib, osg=osg_path
-                ),
-                "-DOSGVIEWER_INCLUDE_DIR={osg}/include".format(osg=osg_path),
-                "-DOSGVIEWER_LIBRARY={osg}/{lib}/libosgViewer.so".format(
-                    lib=lib, osg=osg_path
-                ),
-            ]
-        elif osg_path.endswith("/osg"):
-            lib = "lib"
-            # args = [
-            #     "-DOSG_LIB_DIR={osg}/{lib}".format(lib=lib, osg=osg_path),
-            #     "-DOSG_PLUGINS_DIR={osg}/{lib}/osgPlugins-{ver}".format(
-            #         lib=lib, osg=osg_path, ver=UPSTREAM_OSG_VERSION
-            #     ),
-            # ]
-
-            args = [
-                "-DOPENTHREADS_INCLUDE_DIR={osg}/include".format(osg=osg_path),
-                "-DOPENTHREADS_LIBRARY={osg}/{lib}/libOpenThreads.so".format(
-                    lib=lib, osg=osg_path
-                ),
-                "-DOSG_INCLUDE_DIR={osg}/include".format(osg=osg_path),
-                "-DOSG_LIBRARY={osg}/{lib}/libosg.so".format(lib=lib, osg=osg_path),
-                # "-DOSGANIMATION_INCLUDE_DIR={osg}/include".format(osg=osg_path),
-                # "-DOSGANIMATION_LIBRARY={osg}/{lib}/libosgAnimation.so".format(
-                #     lib=lib, osg=osg_path
-                # ),
-                "-DOSGDB_INCLUDE_DIR={osg}/include".format(osg=osg_path),
-                "-DOSGDB_LIBRARY={osg}/{lib}/libosgDB.so".format(lib=lib, osg=osg_path),
-                "-DOSGFX_INCLUDE_DIR={osg}/include".format(osg=osg_path),
-                "-DOSGFX_LIBRARY={osg}/{lib}/libosgFX.so".format(lib=lib, osg=osg_path),
-                "-DOSGGA_INCLUDE_DIR={osg}/include".format(osg=osg_path),
-                "-DOSGGA_LIBRARY={osg}/{lib}/libosgGA.so".format(lib=lib, osg=osg_path),
-                "-DOSGPARTICLE_INCLUDE_DIR={osg}/include".format(osg=osg_path),
-                "-DOSGPARTICLE_LIBRARY={osg}/{lib}/libosgParticle.so".format(
-                    lib=lib, osg=osg_path
-                ),
-                "-DOSGTEXT_INCLUDE_DIR={osg}/include".format(osg=osg_path),
-                "-DOSGTEXT_LIBRARY={osg}/{lib}/libosgText.so".format(
-                    lib=lib, osg=osg_path
-                ),
-                "-DOSGUTIL_INCLUDE_DIR={osg}/include".format(osg=osg_path),
-                "-DOSGUTIL_LIBRARY={osg}/{lib}/libosgUtil.so".format(
-                    lib=lib, osg=osg_path
-                ),
-                "-DOSGVIEWER_INCLUDE_DIR={osg}/include".format(osg=osg_path),
-                "-DOSGVIEWER_LIBRARY={osg}/{lib}/libosgViewer.so".format(
-                    lib=lib, osg=osg_path
-                ),
-            ]
-
-            # args = [
-            #     "-DOPENTHREADS_INCLUDE_DIR={osg}/include/OpenThreads".format(
-            #         osg=osg_path
-            #     ),
-            #     "-DOPENTHREADS_LIBRARY={osg}/{lib}/libOpenThreads.so".format(
-            #         lib=lib, osg=osg_path
-            #     ),
-            #     "-DOSG_INCLUDE_DIR={osg}/include/osg".format(osg=osg_path),
-            #     "-DOSG_LIBRARY={osg}/{lib}/libosg.so".format(lib=lib, osg=osg_path),
-            #     "-DOSGDB_INCLUDE_DIR={osg}/include/osgDB".format(osg=osg_path),
-            #     "-DOSGDB_LIBRARY={osg}/{lib}/libosgDB.so".format(lib=lib, osg=osg_path),
-            #     "-DOSGFX_INCLUDE_DIR={osg}/include/osgFX".format(osg=osg_path),
-            #     "-DOSGFX_LIBRARY={osg}/{lib}/libosgFX.so".format(lib=lib, osg=osg_path),
-            #     "-DOSGGA_INCLUDE_DIR={osg}/include/osgGA".format(osg=osg_path),
-            #     "-DOSGGA_LIBRARY={osg}/{lib}/libosgGA.so".format(lib=lib, osg=osg_path),
-            #     "-DOSGPARTICLE_INCLUDE_DIR={osg}/include/osgParticle".format(
-            #         osg=osg_path
-            #     ),
-            #     "-DOSGPARTICLE_LIBRARY={osg}/{lib}/libosgParticle.so".format(
-            #         lib=lib, osg=osg_path
-            #     ),
-            #     "-DOSGTEXT_INCLUDE_DIR={osg}/include/osgText".format(osg=osg_path),
-            #     "-DOSGTEXT_LIBRARY={osg}/{lib}/libosgText.so".format(
-            #         lib=lib, osg=osg_path
-            #     ),
-            #     "-DOSGUTIL_INCLUDE_DIR={osg}/include/osgUtil".format(osg=osg_path),
-            #     "-DOSGUTIL_LIBRARY={osg}/{lib}/libosgUtil.so".format(
-            #         lib=lib, osg=osg_path
-            #     ),
-            #     "-DOSGVIEWER_INCLUDE_DIR={osg}/include/osgViewer".format(osg=osg_path),
-            #     "-DOSGVIEWER_LIBRARY={osg}/{lib}/libosgViewer.so".format(
-            #         lib=lib, osg=osg_path
-            #     ),
-            # ]
+        lib = "lib"
+        args = [
+            "-DOPENTHREADS_INCLUDE_DIR={osg}/include".format(osg=osg_path),
+            "-DOPENTHREADS_LIBRARY={osg}/{lib}/libOpenThreads.so".format(
+                lib=lib, osg=osg_path
+            ),
+            "-DOSG_INCLUDE_DIR={osg}/include".format(osg=osg_path),
+            "-DOSG_LIBRARY={osg}/{lib}/libosg.so".format(lib=lib, osg=osg_path),
+            # "-DOSGANIMATION_INCLUDE_DIR={osg}/include".format(osg=osg_path),
+            # "-DOSGANIMATION_LIBRARY={osg}/{lib}/libosgAnimation.so".format(
+            #     lib=lib, osg=osg_path
+            # ),
+            "-DOSGDB_INCLUDE_DIR={osg}/include".format(osg=osg_path),
+            "-DOSGDB_LIBRARY={osg}/{lib}/libosgDB.so".format(lib=lib, osg=osg_path),
+            "-DOSGFX_INCLUDE_DIR={osg}/include".format(osg=osg_path),
+            "-DOSGFX_LIBRARY={osg}/{lib}/libosgFX.so".format(lib=lib, osg=osg_path),
+            "-DOSGGA_INCLUDE_DIR={osg}/include".format(osg=osg_path),
+            "-DOSGGA_LIBRARY={osg}/{lib}/libosgGA.so".format(lib=lib, osg=osg_path),
+            "-DOSGPARTICLE_INCLUDE_DIR={osg}/include".format(osg=osg_path),
+            "-DOSGPARTICLE_LIBRARY={osg}/{lib}/libosgParticle.so".format(
+                lib=lib, osg=osg_path
+            ),
+            "-DOSGTEXT_INCLUDE_DIR={osg}/include".format(osg=osg_path),
+            "-DOSGTEXT_LIBRARY={osg}/{lib}/libosgText.so".format(lib=lib, osg=osg_path),
+            "-DOSGUTIL_INCLUDE_DIR={osg}/include".format(osg=osg_path),
+            "-DOSGUTIL_LIBRARY={osg}/{lib}/libosgUtil.so".format(lib=lib, osg=osg_path),
+            "-DOSGVIEWER_INCLUDE_DIR={osg}/include".format(osg=osg_path),
+            "-DOSGVIEWER_LIBRARY={osg}/{lib}/libosgViewer.so".format(
+                lib=lib, osg=osg_path
+            ),
+        ]
 
     else:
         args = []
@@ -389,240 +294,6 @@ def get_repo_sha(
 
     out = execute_shell(["git", "rev-parse", "--short", "HEAD"])[1][0]
     return out.decode().strip()
-
-
-def make_portable_package(
-    pkgname: str, distro, force=False, out_dir=OUT_DIR, serveronly=False
-) -> bool:
-
-    if not os.path.isdir(out_dir):
-        emit_log("Out dir doesn't exist, creating it: " + out_dir)
-        os.makedirs(out_dir)
-
-    pkg_path = os.path.join(out_dir, pkgname + ".tar.bz2")
-    if os.path.exists(pkg_path) and not force:
-        error_and_die("Path exists: " + pkg_path)
-    elif os.path.exists(pkg_path) and force:
-        emit_log("Force removing " + pkg_path)
-        os.remove(pkg_path)
-
-    emit_log("Creating a portable package: " + pkg_path)
-
-    _tmpdir = tempfile.mkdtemp(suffix=pkgname)
-    pkg_dir = os.path.join(_tmpdir, pkgname)
-    pkg_libs = os.path.join(pkg_dir, "lib")
-
-    emit_log("Making: " + pkg_dir)
-    os.makedirs(pkg_libs)
-
-    if serveronly:
-        bins = (
-            os.path.join(SRC_DIR, "tes3mp", "build", "tes3mp-server"),
-            os.path.join(SRC_DIR, "tes3mp", "build", "tes3mp-server-default.cfg"),
-            os.path.join(SRC_DIR, "tes3mp", "AUTHORS.md"),
-            os.path.join(SRC_DIR, "tes3mp", "LICENSE"),
-            os.path.join(SRC_DIR, "tes3mp", "README.md"),
-            os.path.join(SRC_DIR, "tes3mp", "tes3mp-credits.md"),
-        )
-    else:
-        bins = (
-            os.path.join(SRC_DIR, "tes3mp", "build", "bsatool"),
-            os.path.join(SRC_DIR, "tes3mp", "build", "esmtool"),
-            os.path.join(SRC_DIR, "tes3mp", "build", "openmw-essimporter"),
-            os.path.join(SRC_DIR, "tes3mp", "build", "openmw-iniimporter"),
-            os.path.join(SRC_DIR, "tes3mp", "build", "openmw-launcher"),
-            os.path.join(SRC_DIR, "tes3mp", "build", "openmw-wizard"),
-            os.path.join(SRC_DIR, "tes3mp", "build", "settings-default.cfg"),
-            os.path.join(SRC_DIR, "tes3mp", "build", "tes3mp"),
-            os.path.join(SRC_DIR, "tes3mp", "build", "tes3mp-browser"),
-            os.path.join(SRC_DIR, "tes3mp", "build", "tes3mp-client-default.cfg"),
-            os.path.join(SRC_DIR, "tes3mp", "build", "tes3mp-server"),
-            os.path.join(SRC_DIR, "tes3mp", "build", "tes3mp-server-default.cfg"),
-            os.path.join(SRC_DIR, "tes3mp", "tes3mp-credits.md"),
-        )
-
-    if os.getenv("TES3MP_FORGE"):
-        # This is a build inside GrimKriegor's tes3mp-forge docker image
-        system_libs = (
-            "/usr/local/lib64/libstdc++.so.6",
-            "/usr/local/lib/libMyGUIEngine.so.3.2.3",
-            "/usr/local/lib/libavcodec.so.58",
-            "/usr/local/lib/libavformat.so.58",
-            "/usr/local/lib/libavutil.so.56",
-            "/usr/local/lib/libboost_filesystem.so.1.64.0",
-            "/usr/local/lib/libboost_program_options.so.1.64.0",
-            "/usr/local/lib/libboost_system.so.1.64.0",
-            "/usr/local/lib/libswresample.so.3",
-            "/usr/local/lib/libswscale.so.5",
-            "/usr/local/lib64/libOpenThreads.so.20",
-            "/usr/local/lib64/libosg.so.130",
-            "/usr/local/lib64/libosgAnimation.so.130",
-            "/usr/local/lib64/libosgDB.so.130",
-            "/usr/local/lib64/libosgFX.so.130",
-            "/usr/local/lib64/libosgGA.so.130",
-            "/usr/local/lib64/libosgParticle.so.130",
-            "/usr/local/lib64/libosgText.so.130",
-            "/usr/local/lib64/libosgUtil.so.130",
-            "/usr/local/lib64/libosgViewer.so.130",
-            "/usr/local/lib64/libosgWidget.so.130",
-            "/usr/lib/x86_64-linux-gnu/libSDL2.a",
-            "/usr/lib/x86_64-linux-gnu/libSDL2-2.0.so.0",
-            "/usr/lib/x86_64-linux-gnu/libopenal.so",
-            "/usr/lib/x86_64-linux-gnu/libluajit-5.1.so.2",
-            "/usr/lib/x86_64-linux-gnu/libpng12.so.0",
-        )
-        openmw_libs = (
-            os.path.join(
-                SRC_DIR,
-                "bullet",
-                "build",
-                "src",
-                "BulletCollision",
-                "libBulletCollision.so.2.86",
-            ),
-            os.path.join(
-                SRC_DIR, "bullet", "build", "src", "LinearMath", "libLinearMath.so.2.86"
-            ),
-            os.path.join(SRC_DIR, "unshield", "build", "lib", "libunshield.so"),
-        )
-
-    elif "Void" in distro:
-        system_libs = (
-            "/usr/lib/libavcodec.so.58",
-            "/usr/lib/libavformat.so.58",
-            "/usr/lib/libavutil.so.56",
-            "/usr/lib/libboost_filesystem.so",
-            "/usr/lib/libboost_program_options.so",
-            "/usr/lib/libboost_system.so",
-            "/usr/lib/libboost_thread.so",
-            "/usr/lib/libswresample.so",
-            "/usr/lib/libswscale.so",
-            "/usr/lib/libSDL2.so",
-            "/usr/lib/libbz2.so",
-            "/usr/lib/libopenal.so",
-            "/usr/lib/libluajit-5.1.so",
-            "/usr/lib/libpng16.so",
-        )
-
-    # This part is totally untested
-    elif "Ubuntu" in distro or "Debian" in distro:
-        system_libs = (
-            "/usr/lib/x86_64-linux-gnu/libavcodec.so",
-            "/usr/lib/x86_64-linux-gnu/libavformat.so",
-            "/usr/lib/x86_64-linux-gnu/libavutil.so",
-            # TODO: These numbers are likely specific to Debian 9
-            "/usr/lib/x86_64-linux-gnu/libboost_filesystem.so.1.67.0",
-            "/usr/lib/x86_64-linux-gnu/libboost_program_options.so.1.67.0",
-            "/usr/lib/x86_64-linux-gnu/libboost_system.so.1.67.0",
-            "/usr/lib/x86_64-linux-gnu/libboost_thread.so.1.67.0",
-            "/usr/lib/x86_64-linux-gnu/libswresample.so",
-            "/usr/lib/x86_64-linux-gnu/libswscale.so",
-            "/usr/lib/x86_64-linux-gnu/libSDL2.so",
-            "/usr/lib/x86_64-linux-gnu/libbz2.so",
-            "/usr/lib/x86_64-linux-gnu/libluajit-5.1.so",
-            "/usr/lib/x86_64-linux-gnu/libopenal.so",
-            "/usr/lib/x86_64-linux-gnu/libpng16.so",
-        )
-
-    if serveronly:
-        openmw_libs = (
-            os.path.join(
-                SRC_DIR,
-                "bullet",
-                "build",
-                "src",
-                "BulletCollision",
-                "libBulletCollision.so.2.86",
-            ),
-            os.path.join(
-                SRC_DIR, "bullet", "build", "src", "LinearMath", "libLinearMath.so.2.86"
-            ),
-            os.path.join(SRC_DIR, "mygui", "build", "lib", "libMyGUIEngine.so.3.4.0"),
-            os.path.join(SRC_DIR, "unshield", "build", "lib", "libunshield.so"),
-        )
-
-    else:
-        openmw_libs = (
-            os.path.join(
-                SRC_DIR,
-                "bullet",
-                "build",
-                "src",
-                "BulletCollision",
-                "libBulletCollision.so.2.86",
-            ),
-            os.path.join(
-                SRC_DIR, "bullet", "build", "src", "LinearMath", "libLinearMath.so.2.86"
-            ),
-            os.path.join(SRC_DIR, "mygui", "build", "lib", "libMyGUIEngine.so.3.4.0"),
-            os.path.join(SRC_DIR, "unshield", "build", "lib", "libunshield.so"),
-            os.path.join(SRC_DIR, "osg-openmw", "build", "lib", "libOpenThreads.so.20"),
-            os.path.join(SRC_DIR, "osg-openmw", "build", "lib", "libosg.so.130"),
-            os.path.join(
-                SRC_DIR, "osg-openmw", "build", "lib", "libosgAnimation.so.130"
-            ),
-            os.path.join(SRC_DIR, "osg-openmw", "build", "lib", "libosgDB.so.130"),
-            os.path.join(SRC_DIR, "osg-openmw", "build", "lib", "libosgFX.so.130"),
-            os.path.join(SRC_DIR, "osg-openmw", "build", "lib", "libosgGA.so.130"),
-            os.path.join(
-                SRC_DIR, "osg-openmw", "build", "lib", "libosgParticle.so.130"
-            ),
-            os.path.join(SRC_DIR, "osg-openmw", "build", "lib", "libosgText.so.130"),
-            os.path.join(SRC_DIR, "osg-openmw", "build", "lib", "libosgUtil.so.130"),
-            os.path.join(SRC_DIR, "osg-openmw", "build", "lib", "libosgViewer.so.130"),
-            os.path.join(SRC_DIR, "osg-openmw", "build", "lib", "libosgWidget.so.130"),
-        )
-
-    emit_log("Copying binaries")
-    for b in bins:
-        emit_log("Copying {0} to {1}".format(b, pkg_dir), level=logging.DEBUG)
-        shutil.copy(b, pkg_dir)
-
-    emit_log("Copying system libs")
-    for lib in system_libs:
-        emit_log("Copying {0} to {1}".format(lib, pkg_libs), level=logging.DEBUG)
-        shutil.copy(lib, pkg_libs)
-
-    emit_log("Copying openmw libs")
-    for lib in openmw_libs:
-        emit_log("Copying {0} to {1}".format(lib, pkg_libs), level=logging.DEBUG)
-        shutil.copy(lib, pkg_libs)
-
-    # emit_log("Copying tes3mp libs")
-    # for lib in tes3mp_libs:
-    #     emit_log("Copying {0} to {1}".format(lib, pkg_libs), level=logging.DEBUG)
-    #     shutil.copy(lib, pkg_libs)
-
-    emit_log("Copying resources")
-    shutil.copytree(
-        os.path.join(SRC_DIR, "tes3mp", "build", "resources"),
-        os.path.join(pkg_dir, "resources"),
-    )
-
-    if serveronly:
-        emit_log("Copying osgPlugins-3.4.0")
-        shutil.copytree(
-            os.path.join("/usr/lib/x86_64-linux-gnu/osgPlugins-3.4.0"),
-            os.path.join(pkg_libs, "osgPlugins-3.4.0"),
-        )
-    else:
-        emit_log("Copying osgPlugins-3.4.1")
-        shutil.copytree(
-            os.path.join(SRC_DIR, "osg-openmw", "build", "lib", "osgPlugins-3.6.5"),
-            os.path.join(pkg_libs, "osgPlugins-3.6.5"),
-        )
-
-    _prev = os.getcwd()
-    os.chdir(_tmpdir)
-    emit_log("Creating package now: " + pkg_path)
-    tar = tarfile.open(pkg_path, "w:bz2")
-    tar.add(pkgname)
-    tar.close()
-
-    os.chdir(_prev)
-    emit_log("Removing: " + _tmpdir)
-    shutil.rmtree(_tmpdir)
-    return True
 
 
 def install_packages(distro: str, **kwargs) -> bool:
@@ -714,11 +385,6 @@ def parse_argv() -> None:
         "--build-mygui",
         action="store_true",
         help="Build MyGUI, rather than use the system package.",
-    )
-    options.add_argument(
-        "--build-upstream-osg",
-        action="store_true",
-        help="Build upstream OSG, rather than use the OpenMW fork.",
     )
     options.add_argument(
         "--build-unshield",
@@ -860,7 +526,6 @@ def main() -> None:
     distro = None
     build_bullet = False
     build_mygui = False
-    build_upstream_osg = False
     build_unshield = False
     force_bullet = False
     force_mygui = False
@@ -873,7 +538,6 @@ def main() -> None:
     system_osg = False
     parsed = parse_argv()
     make_install = False
-    make_pkg = False
     out_dir = OUT_DIR
     patch = None
     pull = True
@@ -914,9 +578,6 @@ def main() -> None:
     if parsed.build_mygui:
         build_mygui = True
         emit_log("Building MyGUI")
-    if parsed.build_upstream_osg:
-        build_upstream_osg = True
-        emit_log("Building upstream OSG")
     if parsed.build_unshield:
         build_unshield = True
         emit_log("Building Unshield")
@@ -938,9 +599,9 @@ def main() -> None:
     if parsed.force_unshield:
         force_unshield = True
         emit_log("Forcing build of Unshield")
-    if parsed.force_pkg:
-        force_pkg = True
-        emit_log("Forcing build of package")
+    # if parsed.force_pkg:
+    #     force_pkg = True
+    #     emit_log("Forcing build of package")
     if parsed.install_prefix:
         install_prefix = parsed.install_prefix
         emit_log("Using the install prefix: " + install_prefix)
@@ -950,9 +611,6 @@ def main() -> None:
     if parsed.make_install:
         make_install = parsed.make_install
         emit_log("Make install will be ran")
-    if parsed.make_pkg:
-        make_pkg = parsed.make_pkg
-        emit_log("A package will be made")
     if parsed.no_pull:
         pull = False
         emit_log("git fetch will not be ran")
@@ -1044,29 +702,7 @@ def main() -> None:
     ensure_dir(install_prefix)
     ensure_dir(src_dir)
 
-    if build_upstream_osg:
-        build_library(
-            "osg",
-            check_file=os.path.join(install_prefix, "osg", "lib", "libosg.so.3.6.5"),
-            cmake_args=[
-                "-DBUILD_OSG_PLUGINS_BY_DEFAULT=0",
-                "-DBUILD_OSG_PLUGIN_OSG=1",
-                "-DBUILD_OSG_PLUGIN_DDS=1",
-                "-DBUILD_OSG_PLUGIN_TGA=1",
-                "-DBUILD_OSG_PLUGIN_BMP=1",
-                "-DBUILD_OSG_PLUGIN_JPEG=1",
-                "-DBUILD_OSG_PLUGIN_PNG=1",
-                "-DBUILD_OSG_DEPRECATED_SERIALIZERS=0",
-            ],
-            cpus=cpus,
-            force=force_osg,
-            git_url="https://github.com/openscenegraph/OpenSceneGraph.git",
-            install_prefix=install_prefix,
-            src_dir=src_dir,
-            verbose=verbose,
-        )
-
-    elif not system_osg:
+    if not system_osg:
         # OSG-OPENMW
 
         build_library(
@@ -1128,31 +764,27 @@ def main() -> None:
             version=UNSHIELD_VERSION,
         )
 
-    # Don't build MyGUI if this is a dockerized build
-    if make_pkg and os.getenv("TES3MP_FORGE"):
-        emit_log("Skipping MyGUI build")
-    else:
-        # MYGUI
-        if build_mygui or force_mygui:
-            build_library(
-                "mygui",
-                check_file=os.path.join(
-                    install_prefix, "mygui", "lib", "libMyGUIEngine.so"
-                ),
-                cmake_args=[
-                    "-DMYGUI_BUILD_TOOLS=OFF",
-                    "-DMYGUI_RENDERSYSTEM=1",
-                    "-DMYGUI_BUILD_DEMOS=OFF",
-                    "-DMYGUI_BUILD_PLUGINS=OFF",
-                ],
-                cpus=cpus,
-                force=force_mygui,
-                git_url="https://github.com/MyGUI/mygui.git",
-                install_prefix=install_prefix,
-                src_dir=src_dir,
-                verbose=verbose,
-                version=MYGUI_VERSION,
-            )
+    # MYGUI
+    if build_mygui or force_mygui:
+        build_library(
+            "mygui",
+            check_file=os.path.join(
+                install_prefix, "mygui", "lib", "libMyGUIEngine.so"
+            ),
+            cmake_args=[
+                "-DMYGUI_BUILD_TOOLS=OFF",
+                "-DMYGUI_RENDERSYSTEM=1",
+                "-DMYGUI_BUILD_DEMOS=OFF",
+                "-DMYGUI_BUILD_PLUGINS=OFF",
+            ],
+            cpus=cpus,
+            force=force_mygui,
+            git_url="https://github.com/MyGUI/mygui.git",
+            install_prefix=install_prefix,
+            src_dir=src_dir,
+            verbose=verbose,
+            version=MYGUI_VERSION,
+        )
 
     if tes3mp or tes3mp_serveronly:
 
@@ -1218,16 +850,6 @@ def main() -> None:
                     bullet, osg, use_bullet=build_bullet or force_bullet
                 )
 
-            else:
-                if build_upstream_osg:
-                    osg = os.path.join(INSTALL_PREFIX, "osg")
-                elif system_osg:
-                    osg = None
-                else:
-                    osg = os.path.join(INSTALL_PREFIX, "osg-openmw")
-                full_args = format_openmw_cmake_args(
-                    bullet, osg, use_bullet=build_bullet or force_bullet
-                )
             for arg in full_args:
                 tes3mp_cmake_args.append(arg)
 
@@ -1260,15 +882,6 @@ def main() -> None:
             if os.path.islink("tes3mp"):
                 os.remove("tes3mp")
             os.symlink("tes3mp-" + tes3mp_sha, "tes3mp")
-
-        if make_pkg:
-            make_portable_package(
-                tes3mp,
-                distro,
-                force=force_pkg,
-                out_dir=out_dir,
-                serveronly=tes3mp_serveronly,
-            )
 
         if with_corescripts:
             scripts_dir = os.path.join(
@@ -1354,9 +967,9 @@ def main() -> None:
             "-DDESIRED_QT_VERSION=5",
         ]
 
-        if build_upstream_osg:
-            osg = os.path.join(INSTALL_PREFIX, "osg")
-        elif system_osg:
+        # if build_upstream_osg:
+        #     osg = os.path.join(INSTALL_PREFIX, "osg")
+        if system_osg:
             osg = None
         else:
             osg = os.path.join(INSTALL_PREFIX, "osg-openmw")
@@ -1418,9 +1031,6 @@ def main() -> None:
         if os.path.islink("openmw"):
             os.remove("openmw")
         os.symlink("openmw-" + openmw_sha, "openmw")
-
-        if make_pkg:
-            make_portable_package(openmw, distro, force=force_pkg, out_dir=out_dir)
 
     end = datetime.datetime.now()
     duration = end - start
