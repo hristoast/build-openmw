@@ -9,6 +9,7 @@ import sys
 import tarfile
 import tempfile
 
+
 BULLET_VERSION = "2.86.1"
 MYGUI_VERSION = "3.2.2"
 UNSHIELD_VERSION = "1.4.2"
@@ -34,11 +35,11 @@ UBUNTU_PKGS = (
     ["libfreetype6-dev", "libbz2-dev", "liblzma-dev"]
     + DEBIAN_PKGS
     + [
-        "libboost-filesystem-dev",
+        "libboost-filesystem1.62-dev",
         "libboost1.62-dev",
-        "libboost-thread-dev",
-        "libboost-program-options-dev",
-        "libboost-system-dev",
+        "libboost-thread1.62-dev",
+        "libboost-program-options1.62-dev",
+        "libboost-system1.62-dev",
     ]
 )
 DEBIAN_PKGS += [
