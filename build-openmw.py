@@ -28,9 +28,26 @@ OUT_DIR = os.getenv("HOME")
 SRC_DIR = os.path.join(INSTALL_PREFIX, "src")
 
 ARCH_PKGS = "".split()
-DEBIAN_PKGS = "git libopenal-dev libbullet-dev libsdl2-dev qt5-default libfreetype6-dev libboost-filesystem-dev libboost1.71-dev libboost-thread-dev libboost-program-options-dev libboost-system-dev libavcodec-dev libavformat-dev libavutil-dev libswscale-dev cmake build-essential libqt5opengl5-dev".split()
+DEBIAN_PKGS = "cmake git libopenal-dev libbullet-dev libsdl2-dev qt5-default libfreetype6-dev libavcodec-dev libavformat-dev libavutil-dev libswscale-dev cmake build-essential libqt5opengl5-dev".split()
 REDHAT_PKGS = "openal-devel SDL2-devel qt5-devel boost-filesystem git boost-thread boost-program-options boost-system ffmpeg-devel ffmpeg-libs gcc-c++ tinyxml-devel cmake".split()
-UBUNTU_PKGS = ["libfreetype6-dev", "libbz2-dev", "liblzma-dev"] + DEBIAN_PKGS
+UBUNTU_PKGS = (
+    ["libfreetype6-dev", "libbz2-dev", "liblzma-dev"]
+    + DEBIAN_PKGS
+    + [
+        "libboost-filesystem-dev",
+        "libboost1.62-dev",
+        "libboost-thread-dev",
+        "libboost-program-options-dev",
+        "libboost-system-dev",
+    ]
+)
+DEBIAN_PKGS += [
+    "libboost-filesystem-dev",
+    "libboost1.71-dev",
+    "libboost-thread-dev",
+    "libboost-program-options-dev",
+    "libboost-system-dev",
+]
 VOID_PKGS = "SDL2-devel boost-devel bullet-devel cmake ffmpeg-devel freetype-devel gcc git libXt-devel libavformat libavutil libmygui-devel libopenal-devel libopenjpeg2-devel libswresample libswscale libtxc_liblzma-devel libunshield-devel python-devel python3-devel qt5-devel zlib-devel".split()
 
 PROG = "build-openmw"
