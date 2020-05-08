@@ -13,7 +13,7 @@ BULLET_VERSION = "2.86.1"
 MYGUI_VERSION = "3.2.2"
 UNSHIELD_VERSION = "1.4.2"
 
-OPENMW_OSG_BRANCH = "3.4-experimental"
+OPENMW_OSG_BRANCH = "OpenSceneGraph-3.6"
 UPSTREAM_OSG_VERSION = "3.6.5"
 
 TES3MP_CORESCRIPTS_VERSION = "0.7.0"
@@ -590,8 +590,8 @@ def make_portable_package(
     else:
         emit_log("Copying osgPlugins-3.4.1")
         shutil.copytree(
-            os.path.join(SRC_DIR, "osg-openmw", "build", "lib", "osgPlugins-3.4.1"),
-            os.path.join(pkg_libs, "osgPlugins-3.4.1"),
+            os.path.join(SRC_DIR, "osg-openmw", "build", "lib", "osgPlugins-3.6.5"),
+            os.path.join(pkg_libs, "osgPlugins-3.6.5"),
         )
 
     _prev = os.getcwd()
@@ -1053,7 +1053,7 @@ def main() -> None:
 
         build_library(
             "osg-openmw",
-            check_file=os.path.join(install_prefix, "osg-openmw", "lib64", "libosg.so"),
+            check_file=os.path.join(install_prefix, "osg-openmw", "lib", "libosg.so"),
             cmake_args=[
                 "-DBUILD_OSG_PLUGINS_BY_DEFAULT=0",
                 "-DBUILD_OSG_PLUGIN_OSG=1",
