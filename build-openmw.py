@@ -27,12 +27,13 @@ SRC_DIR = os.path.join(INSTALL_PREFIX, "src")
 
 ARCH_PKGS = "".split()
 # TODO: conditionally add bullet and unshield
-DEBIAN_PKGS = "cmake git libopenal-dev libbullet-dev libsdl2-dev qt5-default libfreetype6-dev libavcodec-dev libavformat-dev libavutil-dev libswscale-dev cmake build-essential libqt5opengl5-dev libunshield-dev libbullet-dev".split()
+DEBIAN_PKGS = "cmake git libopenal-dev libbullet-dev libsdl2-dev qt5-default libfreetype6-dev libavcodec-dev libavformat-dev libavutil-dev libswscale-dev cmake build-essential libqt5opengl5-dev libunshield-dev libmygui-dev libbullet-dev".split()
 REDHAT_PKGS = "openal-devel SDL2-devel qt5-devel boost-filesystem git boost-thread boost-program-options boost-system ffmpeg-devel ffmpeg-libs gcc-c++ tinyxml-devel cmake".split()
 UBUNTU_PKGS = (
     ["libfreetype6-dev", "libbz2-dev", "liblzma-dev"]
     + DEBIAN_PKGS
     + [
+        "libboost-iostreams1.62-dev",
         "libboost-filesystem1.62-dev",
         "libboost1.62-dev",
         "libboost-thread1.62-dev",
