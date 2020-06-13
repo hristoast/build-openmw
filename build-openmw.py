@@ -403,6 +403,9 @@ def parse_argv() -> None:
     )
     options.add_argument("--force-osg", action="store_true", help="Force build OSG.")
     options.add_argument(
+        "--force-raknet", action="store_true", help="Force build Raknet."
+    )
+    options.add_argument(
         "--force-tes3mp", action="store_true", help="Force build TES3MP."
     )
     options.add_argument(
@@ -532,6 +535,7 @@ def main() -> None:
     force_mygui = False
     force_openmw = False
     force_osg = False
+    force_raknet = False
     force_tes3mp = False
     force_unshield = False
     force_pkg = False
@@ -569,6 +573,7 @@ def main() -> None:
         force_bullet = True
         force_mygui = True
         force_osg = True
+        force_raknet = True
         force_tes3mp = True
         force_unshield = True
         force_pkg = True
@@ -594,6 +599,9 @@ def main() -> None:
     if parsed.force_osg:
         force_osg = True
         emit_log("Forcing build of OSG")
+    if parsed.force_raknet:
+        force_raknet = True
+        emit_log("Forcing build of Raknet")
     if parsed.force_tes3mp:
         force_tes3mp = True
         emit_log("Forcing build of TES3MP")
@@ -789,6 +797,27 @@ def main() -> None:
 
     if tes3mp or tes3mp_serveronly:
 
+        build_library(
+            "raknet",
+            check_file=os.path.join(
+                install_prefix, "src", "raknet", "build", "lib", "libRakNetLibStatic.a"
+            ),
+            cmake_args=[
+                "-DRAKNET_ENABLE_DLL=OFF",
+                "-DRAKNET_ENABLE_SAMPLES=OFF",
+                "-DRAKNET_ENABLE_STATIC=ON",
+                "-DRAKNET_GENERATE_INCLUDE_ONLY_DIR=ON",
+            ],
+            cpus=cpus,
+            force=force_raknet,
+            git_url="https://github.com/TES3MP/RakNet.git",
+            install_prefix=install_prefix,
+            make_install=False,  # Never ever make install this
+            src_dir=src_dir,
+            verbose=verbose,
+            version=RAKNET_VERSION,
+        )
+
         tes3mp_sha = get_repo_sha(
             src_dir, repo="tes3mp", rev=rev, pull=pull, verbose=verbose
         )
@@ -798,10 +827,25 @@ def main() -> None:
         else:
             tes3mp = "tes3mp"
         build_env = os.environ.copy()
+<<<<<<< HEAD
         if system_osg:
             prefix_path = ""
         else:
             prefix_path = "{0}/osg-openmw"
+=======
+        if os.getenv("TES3MP_FORGE"):
+            # Don't need to include MyGUI because it wasn't built and/or is gotten from the system
+            build_env[
+                "CMAKE_PREFIX_PATH"
+            ] = "/usr/local/lib64:/usr/local/lib:{0}/unshield:{0}/bullet:{0}/src/raknet/build/lib".format(
+                install_prefix
+            )
+        else:
+            if system_osg:
+                prefix_path = ""
+            else:
+                prefix_path = "{0}/osg-openmw"
+>>>>>>> parent of 92f08bd... This script doesn't need to care about raknet anymore
 
         if build_bullet or force_bullet:
             prefix_path += ":{0}/bullet"
@@ -810,8 +854,15 @@ def main() -> None:
         if build_unshield or force_unshield:
             prefix_path += ":{0}/unshield"
 
+<<<<<<< HEAD
         build_env["CMAKE_PREFIX_PATH"] = prefix_path.format(install_prefix)
         build_env["LDFLAGS"] = "-llzma -lz -lbz2"
+=======
+            prefix_path += ":{0}/src/raknet/build/lib"
+
+            build_env["CMAKE_PREFIX_PATH"] = prefix_path.format(install_prefix)
+            build_env["LDFLAGS"] = "-llzma -lz -lbz2"
+>>>>>>> parent of 92f08bd... This script doesn't need to care about raknet anymore
 
         tes3mp_binary = "tes3mp"
         # TODO: a flag for enabling a debug build
@@ -822,6 +873,13 @@ def main() -> None:
             "-DCMAKE_CXX_STANDARD=14",
             '-DCMAKE_CXX_FLAGS="-std=c++14"',
             "-DDESIRED_QT_VERSION=5",
+            "-DRakNet_INCLUDES={}/raknet/include".format(SRC_DIR),
+            "-DRakNet_LIBRARY_DEBUG={}/raknet/build/lib/libRakNetLibStatic.a".format(
+                SRC_DIR
+            ),
+            "-DRakNet_LIBRARY_RELEASE={}/raknet/build/lib/libRakNetLibStatic.a".format(
+                SRC_DIR
+            ),
         ]
 
         if tes3mp_serveronly:
