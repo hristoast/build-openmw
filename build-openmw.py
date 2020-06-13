@@ -214,7 +214,7 @@ def build_library(
         exitcode, output = execute_shell(
             ["make", "-j{}".format(cpus)], env=env, verbose=verbose
         )
-        if exitcode != 0:
+        if exitcode != 0 and libname != "tes3mp":
             emit_log(output[1])
             error_and_die("make exited nonzero!")
 
@@ -829,10 +829,11 @@ def main() -> None:
         else:
             tes3mp = "tes3mp"
         build_env = os.environ.copy()
-        if system_osg:
-            prefix_path = ""
-        else:
-            prefix_path = "{0}/osg-openmw"
+        # if system_osg:
+        #     prefix_path = ""
+        # else:
+        #     prefix_path = "{0}/osg-openmw"
+        prefix_path = ""
 
         if build_bullet or force_bullet:
             prefix_path += ":{0}/bullet"
@@ -891,6 +892,7 @@ def main() -> None:
 
             tes3mp_cmake_args = [
                 "-Wno-dev",
+                "-DBUILD_OPENMW_MP=ON",
                 "-DCMAKE_BUILD_TYPE=Release",
                 "-DBUILD_OPENCS=OFF",
                 "-DCMAKE_CXX_STANDARD=14",
@@ -919,7 +921,9 @@ def main() -> None:
             patch=patch,
             src_dir=src_dir,
             verbose=verbose,
-            version=rev,
+            # version=rev,
+            # version="origin/0.7.0",
+            version="abc4090a0fe1e0cc04cef598a598744d53f3ef6f",
         )
 
         tes3mp_sha = get_repo_sha(
