@@ -62,7 +62,7 @@ def emit_log(msg: str, level=logging.INFO, quiet=False, *args, **kwargs) -> None
         elif level == logging.INFO:
             logging.info(msg, *args, **kwargs)
         elif level == logging.WARN:
-            logging.warn(msg, *args, **kwargs)
+            logging.warning(msg, *args, **kwargs)
         elif level == logging.ERROR:
             logging.error(msg, *args, **kwargs)
 
@@ -798,21 +798,20 @@ def main() -> None:
         else:
             tes3mp = "tes3mp"
         build_env = os.environ.copy()
-        if not os.getenv("TES3MP_FORGE"):
-            if system_osg:
-                prefix_path = ""
-            else:
-                prefix_path = "{0}/osg-openmw"
+        if system_osg:
+            prefix_path = ""
+        else:
+            prefix_path = "{0}/osg-openmw"
 
-            if build_bullet or force_bullet:
-                prefix_path += ":{0}/bullet"
-            if build_mygui or force_mygui:
-                prefix_path += ":{0}/mygui"
-            if build_unshield or force_unshield:
-                prefix_path += ":{0}/unshield"
+        if build_bullet or force_bullet:
+            prefix_path += ":{0}/bullet"
+        if build_mygui or force_mygui:
+            prefix_path += ":{0}/mygui"
+        if build_unshield or force_unshield:
+            prefix_path += ":{0}/unshield"
 
-            build_env["CMAKE_PREFIX_PATH"] = prefix_path.format(install_prefix)
-            build_env["LDFLAGS"] = "-llzma -lz -lbz2"
+        build_env["CMAKE_PREFIX_PATH"] = prefix_path.format(install_prefix)
+        build_env["LDFLAGS"] = "-llzma -lz -lbz2"
 
         tes3mp_binary = "tes3mp"
         # TODO: a flag for enabling a debug build
@@ -851,8 +850,14 @@ def main() -> None:
                     bullet, osg, use_bullet=build_bullet or force_bullet
                 )
 
-            for arg in full_args:
-                tes3mp_cmake_args.append(arg)
+            tes3mp_cmake_args = [
+                "-Wno-dev",
+                "-DCMAKE_BUILD_TYPE=Release",
+                "-DBUILD_OPENCS=OFF",
+                "-DCMAKE_CXX_STANDARD=14",
+                '-DCMAKE_CXX_FLAGS="-std=c++14"',
+                "-DDESIRED_QT_VERSION=5",
+            ]
 
         build_library(
             tes3mp,
