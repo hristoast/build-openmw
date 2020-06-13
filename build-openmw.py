@@ -12,6 +12,7 @@ BULLET_VERSION = "2.86.1"
 MYGUI_VERSION = "3.2.2"
 UNSHIELD_VERSION = "1.4.2"
 
+RAKNET_VERSION = "origin/master"
 OPENMW_OSG_BRANCH = "3.6"
 
 TES3MP_CORESCRIPTS_VERSION = "0.7.0"
@@ -49,6 +50,7 @@ DEBIAN_PKGS += [
     "libboost-system-dev",
 ]
 VOID_PKGS = "SDL2-devel boost-devel bullet-devel cmake ffmpeg-devel freetype-devel gcc git libXt-devel libavformat libavutil libmygui-devel libopenal-devel libopenjpeg2-devel libswresample libswscale libtxc_liblzma-devel libunshield-devel python-devel python3-devel qt5-devel zlib-devel".split()
+VOID_TES3MP_PKGS = "LuaJIT-devel"
 
 PROG = "build-openmw"
 VERSION = "1.11"
@@ -827,25 +829,10 @@ def main() -> None:
         else:
             tes3mp = "tes3mp"
         build_env = os.environ.copy()
-<<<<<<< HEAD
         if system_osg:
             prefix_path = ""
         else:
             prefix_path = "{0}/osg-openmw"
-=======
-        if os.getenv("TES3MP_FORGE"):
-            # Don't need to include MyGUI because it wasn't built and/or is gotten from the system
-            build_env[
-                "CMAKE_PREFIX_PATH"
-            ] = "/usr/local/lib64:/usr/local/lib:{0}/unshield:{0}/bullet:{0}/src/raknet/build/lib".format(
-                install_prefix
-            )
-        else:
-            if system_osg:
-                prefix_path = ""
-            else:
-                prefix_path = "{0}/osg-openmw"
->>>>>>> parent of 92f08bd... This script doesn't need to care about raknet anymore
 
         if build_bullet or force_bullet:
             prefix_path += ":{0}/bullet"
@@ -854,15 +841,9 @@ def main() -> None:
         if build_unshield or force_unshield:
             prefix_path += ":{0}/unshield"
 
-<<<<<<< HEAD
+        prefix_path += ":{0}/src/raknet/build/lib"
         build_env["CMAKE_PREFIX_PATH"] = prefix_path.format(install_prefix)
         build_env["LDFLAGS"] = "-llzma -lz -lbz2"
-=======
-            prefix_path += ":{0}/src/raknet/build/lib"
-
-            build_env["CMAKE_PREFIX_PATH"] = prefix_path.format(install_prefix)
-            build_env["LDFLAGS"] = "-llzma -lz -lbz2"
->>>>>>> parent of 92f08bd... This script doesn't need to care about raknet anymore
 
         tes3mp_binary = "tes3mp"
         # TODO: a flag for enabling a debug build
@@ -915,6 +896,13 @@ def main() -> None:
                 "-DCMAKE_CXX_STANDARD=14",
                 '-DCMAKE_CXX_FLAGS="-std=c++14"',
                 "-DDESIRED_QT_VERSION=5",
+                "-DRakNet_INCLUDES={}/raknet/include".format(SRC_DIR),
+                "-DRakNet_LIBRARY_DEBUG={}/raknet/build/lib/libRakNetLibStatic.a".format(
+                    SRC_DIR
+                ),
+                "-DRakNet_LIBRARY_RELEASE={}/raknet/build/lib/libRakNetLibStatic.a".format(
+                    SRC_DIR
+                ),
             ]
 
         build_library(
