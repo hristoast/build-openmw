@@ -1019,7 +1019,7 @@ def main() -> None:
 
         build_args = [
             "-DBOOST_ROOT=/usr/include/boost",
-            "-DCMAKE_BUILD_TYPE=MinSizeRel",
+            "-DCMAKE_BUILD_TYPE=Release",
             "-DDESIRED_QT_VERSION=5",
         ]
 
