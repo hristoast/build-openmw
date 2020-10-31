@@ -8,7 +8,7 @@ import subprocess
 import sys
 
 
-BULLET_VERSION = "2.86.1"
+BULLET_VERSION = "3.06"
 MYGUI_VERSION = "3.2.2"
 UNSHIELD_VERSION = "1.4.2"
 
@@ -745,12 +745,9 @@ def main() -> None:
                 install_prefix, "bullet", "lib", "libLinearMath.so"
             ),
             cmake_args=[
-                "-DBUILD_CPU_DEMOS=false",
-                "-DBUILD_OPENGL3_DEMOS=false",
-                "-DBUILD_BULLET2_DEMOS=false",
-                "-DBUILD_UNIT_TESTS=false",
                 "-DINSTALL_LIBS=on",
                 "-DBUILD_SHARED_LIBS=on",
+                "-DBULLET2_MULTITHREADING=on",
             ],
             cpus=cpus,
             force=force_bullet,
