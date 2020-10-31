@@ -53,7 +53,7 @@ VOID_PKGS = "SDL2-devel boost-devel bullet-devel cmake ffmpeg-devel freetype-dev
 VOID_TES3MP_PKGS = "LuaJIT-devel"
 
 PROG = "build-openmw"
-VERSION = "1.11"
+VERSION = "1.12"
 
 
 def emit_log(msg: str, level=logging.INFO, quiet=False, *args, **kwargs) -> None:
@@ -493,6 +493,9 @@ def parse_argv() -> None:
         help="Also clone down the CoreScripts repo.",
     )
     options.add_argument(
+        "--with-debug", action="store_true", help="Build OpenMW with debug symbols."
+    )
+    options.add_argument(
         "--with-essimporter",
         action="store_true",
         help="Do build the ess importer. (Default: false)",
@@ -557,6 +560,7 @@ def main() -> None:
     sha = None
     tag = None
     branch = "master"
+    with_debug = False
     with_essimporter = False
     without_cs = False
     without_iniimporter = False
@@ -663,6 +667,8 @@ def main() -> None:
         emit_log("Verbose output enabled")
     if parsed.with_corescripts:
         with_corescripts = True
+    if parsed.with_debug:
+        with_debug = True
     if parsed.with_essimporter:
         with_essimporter = True
     if parsed.without_cs:
@@ -1014,9 +1020,13 @@ def main() -> None:
         else:
             build_env["LDFLAGS"] = "-llzma -lz -lbz2"
 
+        build_type = "Release"
+        if with_debug:
+            build_type = "Debug"
+
         build_args = [
             "-DBOOST_ROOT=/usr/include/boost",
-            "-DCMAKE_BUILD_TYPE=Release",
+            "-DCMAKE_BUILD_TYPE=" + build_type,
             "-DDESIRED_QT_VERSION=5",
         ]
 
@@ -1058,7 +1068,10 @@ def main() -> None:
             emit_log("NOT building the openmw-wizard executable ...")
             full_args.append("-DBUILD_WIZARD=no")
 
-        os.environ["OPENMW_LTO_BUILD"] = "on"
+        if with_debug:
+            full_args.append("-DOPENMW_LTO_BUILD=off")
+        else:
+            full_args.append("-DOPENMW_LTO_BUILD=on")
 
         build_library(
             openmw,
