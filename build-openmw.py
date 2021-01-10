@@ -754,6 +754,7 @@ def main() -> None:
                 "-DINSTALL_LIBS=on",
                 "-DBUILD_SHARED_LIBS=on",
                 "-DBULLET2_MULTITHREADING=on",
+                "-DUSE_DOUBLE_PRECISION=on",
             ],
             cpus=cpus,
             force=force_bullet,
@@ -1040,6 +1041,7 @@ def main() -> None:
         if build_bullet or force_bullet:
             use_bullet = True
             bullet = os.path.join(INSTALL_PREFIX, "bullet")
+            build_args.append("-DBT_USE_DOUBLE_PRECISION=on")
         else:
             use_bullet = False
             bullet = ""
