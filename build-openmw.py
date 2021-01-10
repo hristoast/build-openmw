@@ -403,9 +403,9 @@ def parse_argv() -> None:
     options.add_argument(
         "--force-unshield", action="store_true", help="Force build Unshield."
     )
-    options.add_argument(
-        "--force-pkg", action="store_true", help="Force build a package."
-    )
+    # options.add_argument(
+    #     "--force-pkg", action="store_true", help="Force build a package."
+    # )
     options.add_argument(
         "--force-all",
         action="store_true",
@@ -533,7 +533,7 @@ def main() -> None:
     force_raknet = False
     force_tes3mp = False
     force_unshield = False
-    force_pkg = False
+    # force_pkg = False
     install_prefix = INSTALL_PREFIX
     system_osg = False
     parsed = parse_argv()
@@ -563,7 +563,7 @@ def main() -> None:
         force_openmw = True
         force_osg = True
         force_unshield = True
-        force_pkg = True
+        # force_pkg = True
         emit_log("Force building all dependencies")
     if parsed.force_all_tes3mp:
         force_bullet = True
