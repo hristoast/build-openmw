@@ -263,16 +263,6 @@ def format_openmw_cmake_args(bullet_path: str, osg_path: str, use_bullet=False) 
 
     else:
         args = []
-    if use_bullet:
-        args.append("-DBullet_INCLUDE_DIR={}/include/bullet".format(bullet_path))
-        args.append(
-            "-DBullet_BulletCollision_LIBRARY={}/lib/libBulletCollision.so".format(
-                bullet_path
-            )
-        )
-        args.append(
-            "-DBullet_LinearMath_LIBRARY={}/lib/libLinearMath.so".format(bullet_path)
-        )
     return args
 
 
@@ -380,7 +370,7 @@ def parse_argv() -> None:
     )
     options = parser.add_argument_group("Options")
     options.add_argument(
-        "--build-bullet",
+        "--system-bullet",
         action="store_true",
         help="Build LibBullet, rather than use the system package.",
     )
@@ -533,7 +523,7 @@ def main() -> None:
     start = datetime.datetime.now()
     cpus = CPUS
     distro = None
-    build_bullet = False
+    system_bullet = False
     build_mygui = False
     build_unshield = False
     force_bullet = False
@@ -582,11 +572,11 @@ def main() -> None:
         force_raknet = True
         force_tes3mp = True
         force_unshield = True
-        force_pkg = True
+        # force_pkg = True
         emit_log("Force building all TES3MP dependencies")
-    if parsed.build_bullet:
-        build_bullet = True
-        emit_log("Building LibBullet")
+    if parsed.system_bullet:
+        system_bullet = True
+        emit_log("Using the system LibBullet")
     if parsed.build_mygui:
         build_mygui = True
         emit_log("Building MyGUI")
@@ -744,7 +734,7 @@ def main() -> None:
         )
 
     # BULLET
-    if build_bullet or force_bullet:
+    if not system_bullet or force_bullet:
         build_library(
             "bullet",
             check_file=os.path.join(
@@ -839,7 +829,7 @@ def main() -> None:
         #     prefix_path = "{0}/osg-openmw"
         prefix_path = ""
 
-        if build_bullet or force_bullet:
+        if not system_bullet or force_bullet:
             prefix_path += ":{0}/bullet"
         if build_mygui or force_mygui:
             prefix_path += ":{0}/mygui"
@@ -891,7 +881,7 @@ def main() -> None:
             if os.getenv("TES3MP_FORGE"):
                 osg = "/usr/local"
                 full_args = format_openmw_cmake_args(
-                    bullet, osg, use_bullet=build_bullet or force_bullet
+                    bullet, osg, use_bullet=not system_bullet or force_bullet
                 )
 
             tes3mp_cmake_args = [
@@ -993,7 +983,7 @@ def main() -> None:
         else:
             prefix_path = "{0}/osg-openmw"
 
-        if build_bullet or force_bullet:
+        if not system_bullet or force_bullet:
             prefix_path += ":{0}/bullet"
         if build_mygui or force_mygui:
             prefix_path += ":{0}/mygui"
@@ -1028,7 +1018,6 @@ def main() -> None:
         build_args = [
             "-DBOOST_ROOT=/usr/include/boost",
             "-DCMAKE_BUILD_TYPE=" + build_type,
-            "-DDESIRED_QT_VERSION=5",
         ]
 
         # if build_upstream_osg:
@@ -1038,10 +1027,9 @@ def main() -> None:
         else:
             osg = os.path.join(INSTALL_PREFIX, "osg-openmw")
 
-        if build_bullet or force_bullet:
+        if not system_bullet or force_bullet:
             use_bullet = True
             bullet = os.path.join(INSTALL_PREFIX, "bullet")
-            build_args.append("-DBT_USE_DOUBLE_PRECISION=on")
         else:
             use_bullet = False
             bullet = ""
