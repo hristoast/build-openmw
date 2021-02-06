@@ -49,7 +49,7 @@ DEBIAN_PKGS += [
     "libboost-program-options-dev",
     "libboost-system-dev",
 ]
-VOID_PKGS = "SDL2-devel boost-devel bullet-devel cmake ffmpeg-devel freetype-devel gcc git libXt-devel libavformat libavutil libmygui-devel libopenal-devel libopenjpeg2-devel libswresample libswscale libunshield-devel python-devel python3-devel qt5-devel zlib-devel".split()
+VOID_PKGS = "SDL2-devel boost-devel bullet-devel cmake ffmpeg-devel freetype-devel gcc git libXt-devel libavformat libavutil liblz4-devel libmygui-devel libopenal-devel libopenjpeg2-devel libswresample libswscale libunshield-devel python-devel python3-devel qt5-devel zlib-devel".split()
 VOID_TES3MP_PKGS = "LuaJIT-devel"
 
 PROG = "build-openmw"
