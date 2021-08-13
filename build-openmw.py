@@ -8,8 +8,8 @@ import subprocess
 import sys
 
 
-BULLET_VERSION = "3.06"
-MYGUI_VERSION = "3.2.2"
+BULLET_VERSION = "3.17"
+MYGUI_VERSION = "3.4.1"
 UNSHIELD_VERSION = "1.4.2"
 
 RAKNET_VERSION = "origin/master"
@@ -29,7 +29,7 @@ SRC_DIR = os.path.join(INSTALL_PREFIX, "src")
 ARCH_PKGS = "".split()
 # TODO: conditionally add bullet and unshield
 DEBIAN_PKGS = "cmake git libopenal-dev libbullet-dev libsdl2-dev qt5-default libfreetype6-dev libavcodec-dev libavformat-dev libavutil-dev libswscale-dev cmake build-essential libqt5opengl5-dev libunshield-dev libmygui-dev libbullet-dev".split()
-REDHAT_PKGS = "openal-devel SDL2-devel qt5-devel boost-filesystem git boost-thread boost-program-options boost-system ffmpeg-devel ffmpeg-libs gcc-c++ tinyxml-devel cmake".split()
+FEDORA_PKGS = "unshield-devel redhat-lsb-core openal-devel SDL2-devel qt5-qtbase-devel git boost-thread boost-program-options boost-system boost-devel ffmpeg-devel ffmpeg-libs gcc-c++ tinyxml-devel cmake lz4-devel zlib-devel freetype-devel luajit-devel libXt-devel".split()
 UBUNTU_PKGS = (
     ["libfreetype6-dev", "libbz2-dev", "liblzma-dev"]
     + DEBIAN_PKGS
@@ -49,7 +49,7 @@ DEBIAN_PKGS += [
     "libboost-program-options-dev",
     "libboost-system-dev",
 ]
-VOID_PKGS = "SDL2-devel boost-devel bullet-devel cmake ffmpeg-devel freetype-devel gcc git libXt-devel libavformat libavutil liblz4-devel libmygui-devel libopenal-devel libopenjpeg2-devel libswresample libswscale libunshield-devel pkg-config python-devel python3-devel qt5-devel zlib-devel".split()
+VOID_PKGS = "make SDL2-devel boost-devel bullet-devel cmake ffmpeg-devel freetype-devel gcc git libXt-devel libavformat libavutil liblz4-devel libmygui-devel libopenal-devel libopenjpeg2-devel libswresample libswscale libunshield-devel pkg-config python-devel python3-devel qt5-devel zlib-devel".split()
 VOID_TES3MP_PKGS = "LuaJIT-devel"
 
 PROG = "build-openmw"
@@ -85,7 +85,7 @@ def ensure_dir(path: str, create=True):
                 execute_shell(["sudo", "chown", "{}:".format(os.getlogin()), path])[1]
             emit_log("{} now exists".format(path))
         else:
-            emit_log("Does {0} exist? {1}".format(path), os.path.isdir(path))
+            emit_log("Does {0} exist? {1}".format(path, os.path.isdir(path)))
             return os.path.isdir(path)
     else:
         emit_log("{} exists".format(path))
@@ -130,6 +130,10 @@ def build_library(
 ):
     def _git_clean_src():
         os.chdir(os.path.join(src_dir, clone_dest))
+        if force:
+            # TODO: also do this if an explicit fetch flag is used
+            emit_log("Fetching latest sources ...")
+            execute_shell(["git", "fetch", "--all"])[1][0]
         emit_log("{} executing source clean".format(libname))
         execute_shell(["git", "checkout", "--", "."], verbose=verbose)
         execute_shell(["git", "clean", "-df"], verbose=verbose)
@@ -337,14 +341,14 @@ def install_packages(distro: str, **kwargs) -> bool:
     elif "fedora" in distro.lower():
         emit_log("Distro detected as 'Fedora'")
         if user_uid > 0:
-            cmd = ["dnf", "groupinstall", "-y", "development-tools"]
-            out, err = execute_shell(cmd, verbose=verbose)[1]
-            cmd = ["dnf", "install", "-y"] + REDHAT_PKGS
+            # cmd = ["dnf", "groupinstall", "-y", "development-tools"]
+            # out, err = execute_shell(cmd, verbose=verbose)[1]
+            cmd = ["dnf", "install", "-y"] + FEDORA_PKGS
             out, err = execute_shell(cmd, verbose=verbose)[1]
         else:
-            cmd = ["sudo", "dnf", "groupinstall", "-y", "development-tools"]
-            out, err = execute_shell(cmd, verbose=verbose)[1]
-            cmd = ["sudo", "dnf", "install", "-y"] + REDHAT_PKGS
+            # cmd = ["sudo", "dnf", "groupinstall", "-y", "development-tools"]
+            # out, err = execute_shell(cmd, verbose=verbose)[1]
+            cmd = ["sudo", "dnf", "install", "-y"] + FEDORA_PKGS
             out, err = execute_shell(cmd, verbose=verbose)[1]
     else:
         error_and_die(
@@ -774,7 +778,10 @@ def main() -> None:
         build_library(
             "mygui",
             check_file=os.path.join(
-                install_prefix, "mygui", "lib", "libMyGUIEngine.so"
+                install_prefix,
+                "mygui",
+                "lib64",  # TODO: does this change, distro to distro?
+                "libMyGUIEngine.so",
             ),
             cmake_args=[
                 "-DMYGUI_BUILD_TOOLS=OFF",
@@ -1008,6 +1015,8 @@ def main() -> None:
 
         if distro and "Ubuntu" in distro or "Debian" in distro:
             build_env["LDFLAGS"] = "-lz -lbz2"
+        elif distro and "Fedora" in distro:
+            pass
         else:
             build_env["LDFLAGS"] = "-llzma -lz -lbz2"
 
@@ -1018,6 +1027,7 @@ def main() -> None:
         build_args = [
             "-DBOOST_ROOT=/usr/include/boost",
             "-DCMAKE_BUILD_TYPE=" + build_type,
+            "-DDESIRED_QT_VERSION=5",
         ]
 
         # if build_upstream_osg:

@@ -1,0 +1,9 @@
+FROM fedora:34
+
+RUN dnf install -y https://download1.rpmfusion.org/free/fedora/rpmfusion-free-release-$(rpm -E %fedora).noarch.rpm \
+    && dnf install -y unshield-devel redhat-lsb-core openal-devel SDL2-devel qt5-qtbase-devel git boost-devel \
+    ffmpeg-devel ffmpeg-libs gcc-c++ tinyxml-devel cmake lz4-devel zlib-devel freetype-devel luajit-devel libXt-devel
+
+COPY . .
+
+ENTRYPOINT [ "/build-openmw.py", "--build-mygui", "--verbose", "--skip-install-pkgs" ]
