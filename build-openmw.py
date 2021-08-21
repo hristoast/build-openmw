@@ -267,6 +267,22 @@ def format_openmw_cmake_args(bullet_path: str, osg_path: str, use_bullet=False) 
 
     else:
         args = []
+
+    if use_bullet:
+        args.append(
+            "-DBULLET_DYNAMICS_LIBRARY={}/lib/libBullet3Dynamics.so".format(bullet_path)
+        )
+        args.append(
+            "-DBULLET_COLLISION_LIBRARY={}/lib/libBullet3Collision.so".format(
+                bullet_path
+            )
+        )
+        args.append("-DBULLET_MATH_LIBRARY={}/lib/libLinearMath.so".format(bullet_path))
+        args.append(
+            "-DBULLET_SOFTBODY_LIBRARY={}/lib/libBulletSoftBody.so".format(bullet_path)
+        )
+        args.append("-DBULLET_INCLUDE_DIR={}/include".format(bullet_path))
+
     return args
 
 
