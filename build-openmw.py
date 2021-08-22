@@ -11,12 +11,7 @@ import sys
 BULLET_VERSION = "3.17"
 MYGUI_VERSION = "3.4.1"
 UNSHIELD_VERSION = "1.4.2"
-
-RAKNET_VERSION = "origin/master"
 OPENMW_OSG_BRANCH = "3.6"
-
-TES3MP_CORESCRIPTS_VERSION = "0.7.0"
-
 CPUS = os.cpu_count() + 1
 INSTALL_PREFIX = os.path.join("/", "opt", "build-openmw")
 DESC = "Build OpenMW for your system, install it all to {}.  Also builds the OpenMW fork of OSG, and optionally libBullet, Unshield, and MyGUI, and links against those builds.".format(
@@ -25,7 +20,6 @@ DESC = "Build OpenMW for your system, install it all to {}.  Also builds the Ope
 LOGFMT = "%(asctime)s | %(message)s"
 OUT_DIR = os.getenv("HOME")
 SRC_DIR = os.path.join(INSTALL_PREFIX, "src")
-
 ARCH_PKGS = "".split()
 # TODO: conditionally add bullet and unshield
 DEBIAN_PKGS = "cmake git libopenal-dev libbullet-dev libsdl2-dev qt5-default libfreetype6-dev libavcodec-dev libavformat-dev libavutil-dev libswscale-dev cmake build-essential libqt5opengl5-dev libunshield-dev libmygui-dev libbullet-dev".split()
@@ -50,8 +44,6 @@ DEBIAN_PKGS += [
     "libboost-system-dev",
 ]
 VOID_PKGS = "make SDL2-devel boost-devel bullet-devel cmake ffmpeg-devel freetype-devel gcc git libXt-devel libavformat libavutil liblz4-devel libmygui-devel libopenal-devel libopenjpeg2-devel libswresample libswscale libunshield-devel pkg-config python-devel python3-devel qt5-devel zlib-devel".split()
-VOID_TES3MP_PKGS = "LuaJIT-devel"
-
 PROG = "build-openmw"
 VERSION = "1.13"
 
@@ -218,7 +210,7 @@ def build_library(
         exitcode, output = execute_shell(
             ["make", "-j{}".format(cpus)], env=env, verbose=verbose
         )
-        if exitcode != 0 and libname != "tes3mp":
+        if exitcode != 0:
             emit_log(output[1])
             error_and_die("make exited nonzero!")
 
@@ -411,9 +403,6 @@ def parse_argv() -> None:
         "--force-raknet", action="store_true", help="Force build Raknet."
     )
     options.add_argument(
-        "--force-tes3mp", action="store_true", help="Force build TES3MP."
-    )
-    options.add_argument(
         "--force-unshield", action="store_true", help="Force build Unshield."
     )
     # options.add_argument(
@@ -423,11 +412,6 @@ def parse_argv() -> None:
         "--force-all",
         action="store_true",
         help="Force build all dependencies and OpenMW.",
-    )
-    options.add_argument(
-        "--force-all-tes3mp",
-        action="store_true",
-        help="Force build all dependencies and TES3MP.",
     )
     options.add_argument(
         "--system-osg",
@@ -450,12 +434,9 @@ def parse_argv() -> None:
         "--jobs",
         help="How many cores to use with make.  Default: {}".format(CPUS),
     )
-    options.add_argument(
-        "-i",
-        "--make-install",
-        action="store_true",
-        help="Run 'make install' on OpenMW or TES3MP.",
-    )
+    # options.add_argument(
+    #     "-i", "--make-install", action="store_true", help="Run 'make install' on OpenMW"
+    # )
     options.add_argument(
         "-p", "--make-pkg", action="store_true", help="Make a portable package."
     )
@@ -485,15 +466,6 @@ def parse_argv() -> None:
     )
     options.add_argument(
         "-U", "--update", action="store_true", help="Try to update this script."
-    )
-    options.add_argument("-MP", "--tes3mp", action="store_true", help="Build TES3MP.")
-    options.add_argument(
-        "--tes3mp-server-only", action="store_true", help="Build TES3MP (server only.)"
-    )
-    options.add_argument(
-        "--with-corescripts",
-        action="store_true",
-        help="Also clone down the CoreScripts repo.",
     )
     options.add_argument(
         "--with-debug", action="store_true", help="Build OpenMW with debug symbols."
@@ -543,23 +515,17 @@ def main() -> None:
     force_mygui = False
     force_openmw = False
     force_osg = False
-    force_raknet = False
-    force_tes3mp = False
     force_unshield = False
     # force_pkg = False
     install_prefix = INSTALL_PREFIX
     system_osg = False
     parsed = parse_argv()
-    make_install = False
     out_dir = OUT_DIR
     patch = None
     pull = True
     skip_install_pkgs = False
     src_dir = SRC_DIR
-    tes3mp = False
-    tes3mp_serveronly = False
     verbose = False
-    with_corescripts = False
     sha = None
     tag = None
     branch = "master"
@@ -578,15 +544,6 @@ def main() -> None:
         force_unshield = True
         # force_pkg = True
         emit_log("Force building all dependencies")
-    if parsed.force_all_tes3mp:
-        force_bullet = True
-        force_mygui = True
-        force_osg = True
-        force_raknet = True
-        force_tes3mp = True
-        force_unshield = True
-        # force_pkg = True
-        emit_log("Force building all TES3MP dependencies")
     if parsed.system_bullet:
         system_bullet = True
         emit_log("Using the system LibBullet")
@@ -608,12 +565,6 @@ def main() -> None:
     if parsed.force_osg:
         force_osg = True
         emit_log("Forcing build of OSG")
-    if parsed.force_raknet:
-        force_raknet = True
-        emit_log("Forcing build of Raknet")
-    if parsed.force_tes3mp:
-        force_tes3mp = True
-        emit_log("Forcing build of TES3MP")
     if parsed.force_unshield:
         force_unshield = True
         emit_log("Forcing build of Unshield")
@@ -626,9 +577,6 @@ def main() -> None:
     if parsed.jobs:
         cpus = parsed.jobs
         emit_log("'-j{}' will be used with make".format(cpus))
-    if parsed.make_install:
-        make_install = parsed.make_install
-        emit_log("Make install will be ran")
     if parsed.no_pull:
         pull = False
         emit_log("git fetch will not be ran")
@@ -650,26 +598,10 @@ def main() -> None:
     if parsed.src_dir:
         src_dir = parsed.src_dir
         emit_log("Source directory set to: " + src_dir)
-    if parsed.tes3mp:
-        DEBIAN_PKGS.append("libluajit-5.1-dev")
-        # TODO: redhat package
-        UBUNTU_PKGS.append("libluajit-5.1-dev")
-        VOID_PKGS.append("LuaJIT-devel")
-        tes3mp = True
-        emit_log("TES3MP build selected!")
-    if parsed.tes3mp_server_only:
-        DEBIAN_PKGS.append("libluajit-5.1-dev")
-        # TODO: redhat package
-        UBUNTU_PKGS.append("libluajit-5.1-dev")
-        VOID_PKGS.append("LuaJIT-devel")
-        tes3mp_serveronly = True
-        emit_log("TES3MP server-only build selected")
     if parsed.verbose:
         verbose = parsed.verbose
         logging.getLogger().setLevel(logging.DEBUG)
         emit_log("Verbose output enabled")
-    if parsed.with_corescripts:
-        with_corescripts = True
     if parsed.with_debug:
         with_debug = True
     if parsed.with_essimporter:
@@ -808,305 +740,127 @@ def main() -> None:
             version=MYGUI_VERSION,
         )
 
-    if tes3mp or tes3mp_serveronly:
-
-        build_library(
-            "raknet",
-            check_file=os.path.join(
-                install_prefix, "src", "raknet", "build", "lib", "libRakNetLibStatic.a"
-            ),
-            cmake_args=[
-                "-DRAKNET_ENABLE_DLL=OFF",
-                "-DRAKNET_ENABLE_SAMPLES=OFF",
-                "-DRAKNET_ENABLE_STATIC=ON",
-                "-DRAKNET_GENERATE_INCLUDE_ONLY_DIR=ON",
-            ],
-            cpus=cpus,
-            force=force_raknet,
-            git_url="https://github.com/TES3MP/RakNet.git",
-            install_prefix=install_prefix,
-            make_install=False,  # Never ever make install this
-            src_dir=src_dir,
-            verbose=verbose,
-            version=RAKNET_VERSION,
-        )
-
-        tes3mp_sha = get_repo_sha(
-            src_dir, repo="tes3mp", rev=rev, pull=pull, verbose=verbose
-        )
-
-        if tes3mp_sha:
-            tes3mp = "tes3mp-" + tes3mp_sha
-        else:
-            tes3mp = "tes3mp"
-        build_env = os.environ.copy()
-        # if system_osg:
-        #     prefix_path = ""
-        # else:
-        #     prefix_path = "{0}/osg-openmw"
-        prefix_path = ""
-
-        if not system_bullet or force_bullet:
-            prefix_path += ":{0}/bullet"
-        if build_mygui or force_mygui:
-            prefix_path += ":{0}/mygui"
-        if build_unshield or force_unshield:
-            prefix_path += ":{0}/unshield"
-
-        prefix_path += ":{0}/src/raknet/build/lib"
-        build_env["CMAKE_PREFIX_PATH"] = prefix_path.format(install_prefix)
-        build_env["LDFLAGS"] = "-llzma -lz -lbz2"
-
-        tes3mp_binary = "tes3mp"
-        # TODO: a flag for enabling a debug build
-        tes3mp_cmake_args = [
-            "-Wno-dev",
-            "-DCMAKE_BUILD_TYPE=Release",
-            "-DBUILD_OPENCS=OFF",
-            "-DCMAKE_CXX_STANDARD=14",
-            '-DCMAKE_CXX_FLAGS="-std=c++14"',
-            "-DDESIRED_QT_VERSION=5",
-            "-DRakNet_INCLUDES={}/raknet/include".format(SRC_DIR),
-            "-DRakNet_LIBRARY_DEBUG={}/raknet/build/lib/libRakNetLibStatic.a".format(
-                SRC_DIR
-            ),
-            "-DRakNet_LIBRARY_RELEASE={}/raknet/build/lib/libRakNetLibStatic.a".format(
-                SRC_DIR
-            ),
-        ]
-
-        if tes3mp_serveronly:
-            # Link against the system Bullet and OSB
-            tes3mp_binary = "tes3mp-server"
-            server_args = [
-                "-DBUILD_OPENMW_MP=ON",
-                "-DBUILD_BROWSER=OFF",
-                "-DBUILD_BSATOOL=OFF",
-                "-DBUILD_ESMTOOL=OFF",
-                "-DBUILD_ESSIMPORTER=OFF",
-                "-DBUILD_LAUNCHER=OFF",
-                "-DBUILD_MWINIIMPORTER=OFF",
-                "-DBUILD_MYGUI_PLUGIN=OFF",
-                "-DBUILD_OPENMW=OFF",
-                "-DBUILD_WIZARD=OFF",
-            ]
-            for arg in server_args:
-                tes3mp_cmake_args.append(arg)
-        else:
-            # Link against our built Bullet and OSB
-            bullet = os.path.join(INSTALL_PREFIX, "bullet")
-            if os.getenv("TES3MP_FORGE"):
-                osg = "/usr/local"
-                full_args = format_openmw_cmake_args(
-                    bullet, osg, use_bullet=not system_bullet or force_bullet
-                )
-
-            tes3mp_cmake_args = [
-                "-Wno-dev",
-                "-DBUILD_OPENMW_MP=ON",
-                "-DCMAKE_BUILD_TYPE=Release",
-                "-DBUILD_OPENCS=OFF",
-                "-DCMAKE_CXX_STANDARD=14",
-                '-DCMAKE_CXX_FLAGS="-std=c++14"',
-                "-DDESIRED_QT_VERSION=5",
-                "-DRakNet_INCLUDES={}/raknet/include".format(SRC_DIR),
-                "-DRakNet_LIBRARY_DEBUG={}/raknet/build/lib/libRakNetLibStatic.a".format(
-                    SRC_DIR
-                ),
-                "-DRakNet_LIBRARY_RELEASE={}/raknet/build/lib/libRakNetLibStatic.a".format(
-                    SRC_DIR
-                ),
-            ]
-
-        build_library(
-            tes3mp,
-            check_file=os.path.join(SRC_DIR, "tes3mp", "build", tes3mp_binary),
-            cmake_args=tes3mp_cmake_args,
-            clone_dest="tes3mp",
-            cpus=cpus,
-            env=build_env,
-            force=force_tes3mp,
-            git_url="https://github.com/TES3MP/openmw-tes3mp.git",
-            install_prefix=install_prefix,
-            make_install=make_install,
-            patch=patch,
-            src_dir=src_dir,
-            verbose=verbose,
-            # version=rev,
-            # version="origin/0.7.0",
-            version="abc4090a0fe1e0cc04cef598a598744d53f3ef6f",
-        )
-
-        tes3mp_sha = get_repo_sha(
-            src_dir, repo="tes3mp", rev=rev, pull=pull, verbose=verbose
-        )
-        tes3mp = "-".join((tes3mp, tes3mp_sha))
-
-        if make_install:
-            os.chdir(install_prefix)
-            if str(tes3mp_sha) not in tes3mp:
-                os.rename("tes3mp", "tes3mp-{}".format(tes3mp_sha))
-            if os.path.islink("tes3mp"):
-                os.remove("tes3mp")
-            os.symlink("tes3mp-" + tes3mp_sha, "tes3mp")
-
-        if with_corescripts:
-            scripts_dir = os.path.join(
-                INSTALL_PREFIX, tes3mp, "etc", "openmw", "server"
-            )
-            tes3mp_etc_dir = os.path.join(INSTALL_PREFIX, tes3mp, "etc", "openmw")
-
-            os.makedirs(tes3mp_etc_dir)
-            os.chdir(tes3mp_etc_dir)
-            execute_shell(
-                ["git", "clone", "https://github.com/TES3MP/CoreScripts.git", "server"],
-                verbose=verbose,
-            )
-
-            os.chdir("server")
-            execute_shell(
-                ["git", "checkout", TES3MP_CORESCRIPTS_VERSION], verbose=verbose
-            )
-            emit_log("Server core scripts installed at: " + scripts_dir)
-
-            orig_cfg = []
-            new_cfg = []
-            os.chdir(tes3mp_etc_dir)
-            with open("tes3mp-server-default.cfg", "r") as f:
-                orig_cfg = f.readlines()
-
-            for line in orig_cfg:
-                if "home = ./server" in line:
-                    new_cfg.append("home = " + scripts_dir + "\n")
-                else:
-                    new_cfg.append(line)
-
-            with open("tes3mp-server-default.cfg", "w") as f:
-                for line in new_cfg:
-                    f.write(line)
-
+    # OPENMW
+    openmw_sha = get_repo_sha(src_dir, rev=rev, pull=pull, verbose=verbose)
+    if openmw_sha:
+        openmw = "openmw-{}".format(openmw_sha)
     else:
-        # OPENMW
-        openmw_sha = get_repo_sha(src_dir, rev=rev, pull=pull, verbose=verbose)
-        if openmw_sha:
-            openmw = "openmw-{}".format(openmw_sha)
-        else:
-            # There's no sha yet since the source hasn't been cloned.
-            openmw = "openmw"
-        build_env = os.environ.copy()
+        # There's no sha yet since the source hasn't been cloned.
+        openmw = "openmw"
+    build_env = os.environ.copy()
 
-        if system_osg:
-            prefix_path = ""
-        else:
-            prefix_path = "{0}/osg-openmw"
+    if system_osg:
+        prefix_path = ""
+    else:
+        prefix_path = "{0}/osg-openmw"
 
-        if not system_bullet or force_bullet:
-            prefix_path += ":{0}/bullet"
-        if build_mygui or force_mygui:
-            prefix_path += ":{0}/mygui"
-        if build_unshield or force_unshield:
-            prefix_path += ":{0}/unshield"
+    if not system_bullet or force_bullet:
+        prefix_path += ":{0}/bullet"
+    if build_mygui or force_mygui:
+        prefix_path += ":{0}/mygui"
+    if build_unshield or force_unshield:
+        prefix_path += ":{0}/unshield"
 
-        build_env["CMAKE_PREFIX_PATH"] = prefix_path.format(install_prefix)
+    build_env["CMAKE_PREFIX_PATH"] = prefix_path.format(install_prefix)
 
-        distro = None
-        try:
-            out, err = get_distro()
-            if err:
-                error_and_die(err.decode())
-            distro = out.decode().split(":")[1].strip()
-        except FileNotFoundError:
-            if skip_install_pkgs:
-                pass
-            else:
-                error_and_die(
-                    "Unable to determine your distro to install dependencies!  Try again and use '-S' if you know what you are doing."
-                )
-
-        if distro and "Ubuntu" in distro or "Debian" in distro:
-            build_env["LDFLAGS"] = "-lz -lbz2"
-        elif distro and "Fedora" in distro:
+    distro = None
+    try:
+        out, err = get_distro()
+        if err:
+            error_and_die(err.decode())
+        distro = out.decode().split(":")[1].strip()
+    except FileNotFoundError:
+        if skip_install_pkgs:
             pass
         else:
-            build_env["LDFLAGS"] = "-llzma -lz -lbz2"
+            error_and_die(
+                "Unable to determine your distro to install dependencies!  Try again and use '-S' if you know what you are doing."
+            )
 
-        build_type = "Release"
-        if with_debug:
-            build_type = "Debug"
+    if distro and "Ubuntu" in distro or "Debian" in distro:
+        build_env["LDFLAGS"] = "-lz -lbz2"
+    elif distro and "Fedora" in distro:
+        pass
+    else:
+        build_env["LDFLAGS"] = "-llzma -lz -lbz2"
 
-        build_args = [
-            "-DBOOST_ROOT=/usr/include/boost",
-            "-DCMAKE_BUILD_TYPE=" + build_type,
-            "-DDESIRED_QT_VERSION=5",
-        ]
+    build_type = "Release"
+    if with_debug:
+        build_type = "Debug"
 
-        # if build_upstream_osg:
-        #     osg = os.path.join(INSTALL_PREFIX, "osg")
-        if system_osg:
-            osg = None
-        else:
-            osg = os.path.join(INSTALL_PREFIX, "osg-openmw")
+    build_args = [
+        "-DBOOST_ROOT=/usr/include/boost",
+        "-DCMAKE_BUILD_TYPE=" + build_type,
+        "-DDESIRED_QT_VERSION=5",
+    ]
 
-        if not system_bullet or force_bullet:
-            use_bullet = True
-            bullet = os.path.join(INSTALL_PREFIX, "bullet")
-        else:
-            use_bullet = False
-            bullet = ""
+    # if build_upstream_osg:
+    #     osg = os.path.join(INSTALL_PREFIX, "osg")
+    if system_osg:
+        osg = None
+    else:
+        osg = os.path.join(INSTALL_PREFIX, "osg-openmw")
 
-        full_args = build_args + format_openmw_cmake_args(
-            bullet, osg, use_bullet=use_bullet
-        )
+    if not system_bullet or force_bullet:
+        use_bullet = True
+        bullet = os.path.join(INSTALL_PREFIX, "bullet")
+    else:
+        use_bullet = False
+        bullet = ""
 
-        # Don't build the save importer..
-        if not with_essimporter:
-            full_args.append("-DBUILD_ESSIMPORTER=no")
+    full_args = build_args + format_openmw_cmake_args(
+        bullet, osg, use_bullet=use_bullet
+    )
 
-        if without_cs:
-            emit_log("NOT building the openmw-cs executable ...")
-            full_args.append("-DBUILD_OPENCS=no")
+    # Don't build the save importer..
+    if not with_essimporter:
+        full_args.append("-DBUILD_ESSIMPORTER=no")
 
-        if without_iniimporter:
-            emit_log("NOT building the openmw-iniimporter executable ...")
-            full_args.append("-DBUILD_MWINIIMPORTER=no")
+    if without_cs:
+        emit_log("NOT building the openmw-cs executable ...")
+        full_args.append("-DBUILD_OPENCS=no")
 
-        if without_launcher:
-            emit_log("NOT building the openmw-launcher executable ...")
-            full_args.append("-DBUILD_LAUNCHER=no")
+    if without_iniimporter:
+        emit_log("NOT building the openmw-iniimporter executable ...")
+        full_args.append("-DBUILD_MWINIIMPORTER=no")
 
-        if without_wizard:
-            emit_log("NOT building the openmw-wizard executable ...")
-            full_args.append("-DBUILD_WIZARD=no")
+    if without_launcher:
+        emit_log("NOT building the openmw-launcher executable ...")
+        full_args.append("-DBUILD_LAUNCHER=no")
 
-        if with_debug:
-            full_args.append("-DOPENMW_LTO_BUILD=off")
-        else:
-            full_args.append("-DOPENMW_LTO_BUILD=on")
+    if without_wizard:
+        emit_log("NOT building the openmw-wizard executable ...")
+        full_args.append("-DBUILD_WIZARD=no")
 
-        build_library(
-            openmw,
-            check_file=os.path.join(install_prefix, openmw, "bin", "openmw"),
-            cmake_args=full_args,
-            clone_dest="openmw",
-            cpus=cpus,
-            env=build_env,
-            force=force_openmw,
-            git_url="https://github.com/OpenMW/openmw.git",
-            install_prefix=install_prefix,
-            patch=patch,
-            src_dir=src_dir,
-            verbose=verbose,
-            version=rev,
-        )
-        os.chdir(install_prefix)
-        # Don't fetch updates since new ones might exist
-        openmw_sha = get_repo_sha(src_dir, rev=rev, pull=False, verbose=verbose)
-        os.chdir(install_prefix)
-        if str(openmw_sha) not in openmw:
-            os.rename("openmw", "openmw-{}".format(openmw_sha))
-        if os.path.islink("openmw"):
-            os.remove("openmw")
-        os.symlink("openmw-" + openmw_sha, "openmw")
+    if with_debug:
+        full_args.append("-DOPENMW_LTO_BUILD=off")
+    else:
+        full_args.append("-DOPENMW_LTO_BUILD=on")
+
+    build_library(
+        openmw,
+        check_file=os.path.join(install_prefix, openmw, "bin", "openmw"),
+        cmake_args=full_args,
+        clone_dest="openmw",
+        cpus=cpus,
+        env=build_env,
+        force=force_openmw,
+        git_url="https://github.com/OpenMW/openmw.git",
+        install_prefix=install_prefix,
+        patch=patch,
+        src_dir=src_dir,
+        verbose=verbose,
+        version=rev,
+    )
+    os.chdir(install_prefix)
+    # Don't fetch updates since new ones might exist
+    openmw_sha = get_repo_sha(src_dir, rev=rev, pull=False, verbose=verbose)
+    os.chdir(install_prefix)
+    if str(openmw_sha) not in openmw:
+        os.rename("openmw", "openmw-{}".format(openmw_sha))
+    if os.path.islink("openmw"):
+        os.remove("openmw")
+    os.symlink("openmw-" + openmw_sha, "openmw")
 
     end = datetime.datetime.now()
     duration = end - start
