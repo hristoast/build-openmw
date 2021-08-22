@@ -90,6 +90,7 @@ def error_and_die(msg: str) -> SystemExit:
 
 def execute_shell(cli_args: list, env=None, verbose=False) -> tuple:
     """Small convenience wrapper around subprocess.Popen."""
+    # TODO: Some way to show the build env when printing the command
     emit_log("EXECUTING: " + " ".join(cli_args), level=logging.DEBUG)
     if verbose:
         p = subprocess.Popen(cli_args, env=env)
@@ -688,7 +689,8 @@ def main() -> None:
     else:
         # There's no sha yet since the source hasn't been cloned.
         openmw = "openmw"
-    build_env = os.environ.copy()
+
+    build_env = {"PATH": os.environ["PATH"]}
 
     if system_osg:
         prefix_path = ""
