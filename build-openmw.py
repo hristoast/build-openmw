@@ -223,54 +223,6 @@ def build_library(
             emit_log("{} installed successfully".format(libname))
 
 
-def format_openmw_cmake_args(bullet_path: str, osg_path: str, use_bullet=False) -> list:
-    if osg_path:
-        lib = "lib"
-        args = [
-            "-DOPENTHREADS_INCLUDE_DIR={osg}/include".format(osg=osg_path),
-            "-DOPENTHREADS_LIBRARY={osg}/{lib}/libOpenThreads.so".format(
-                lib=lib, osg=osg_path
-            ),
-            "-DOSG_INCLUDE_DIR={osg}/include".format(osg=osg_path),
-            "-DOSG_LIBRARY={osg}/{lib}/libosg.so".format(lib=lib, osg=osg_path),
-            # "-DOSGANIMATION_INCLUDE_DIR={osg}/include".format(osg=osg_path),
-            # "-DOSGANIMATION_LIBRARY={osg}/{lib}/libosgAnimation.so".format(
-            #     lib=lib, osg=osg_path
-            # ),
-            "-DOSGDB_INCLUDE_DIR={osg}/include".format(osg=osg_path),
-            "-DOSGDB_LIBRARY={osg}/{lib}/libosgDB.so".format(lib=lib, osg=osg_path),
-            "-DOSGFX_INCLUDE_DIR={osg}/include".format(osg=osg_path),
-            "-DOSGFX_LIBRARY={osg}/{lib}/libosgFX.so".format(lib=lib, osg=osg_path),
-            "-DOSGGA_INCLUDE_DIR={osg}/include".format(osg=osg_path),
-            "-DOSGGA_LIBRARY={osg}/{lib}/libosgGA.so".format(lib=lib, osg=osg_path),
-            "-DOSGPARTICLE_INCLUDE_DIR={osg}/include".format(osg=osg_path),
-            "-DOSGPARTICLE_LIBRARY={osg}/{lib}/libosgParticle.so".format(
-                lib=lib, osg=osg_path
-            ),
-            "-DOSGTEXT_INCLUDE_DIR={osg}/include".format(osg=osg_path),
-            "-DOSGTEXT_LIBRARY={osg}/{lib}/libosgText.so".format(lib=lib, osg=osg_path),
-            "-DOSGUTIL_INCLUDE_DIR={osg}/include".format(osg=osg_path),
-            "-DOSGUTIL_LIBRARY={osg}/{lib}/libosgUtil.so".format(lib=lib, osg=osg_path),
-            "-DOSGVIEWER_INCLUDE_DIR={osg}/include".format(osg=osg_path),
-            "-DOSGVIEWER_LIBRARY={osg}/{lib}/libosgViewer.so".format(
-                lib=lib, osg=osg_path
-            ),
-        ]
-
-    else:
-        args = []
-
-    if use_bullet:
-        args.append(
-            "-DBULLET_COLLISION_LIBRARY={}/lib/libBulletCollision.so".format(
-                bullet_path
-            )
-        )
-        args.append("-DBULLET_MATH_LIBRARY={}/lib/libLinearMath.so".format(bullet_path))
-
-    return args
-
-
 def get_distro() -> tuple:
     """Try to run 'lsb_release -d' and return the output."""
     return execute_shell(["lsb_release", "-d"])[1]
@@ -405,9 +357,6 @@ def parse_argv() -> None:
     options.add_argument(
         "--force-unshield", action="store_true", help="Force build Unshield."
     )
-    # options.add_argument(
-    #     "--force-pkg", action="store_true", help="Force build a package."
-    # )
     options.add_argument(
         "--force-all",
         action="store_true",
@@ -434,9 +383,6 @@ def parse_argv() -> None:
         "--jobs",
         help="How many cores to use with make.  Default: {}".format(CPUS),
     )
-    # options.add_argument(
-    #     "-i", "--make-install", action="store_true", help="Run 'make install' on OpenMW"
-    # )
     options.add_argument(
         "-p", "--make-pkg", action="store_true", help="Make a portable package."
     )
@@ -516,7 +462,6 @@ def main() -> None:
     force_openmw = False
     force_osg = False
     force_unshield = False
-    # force_pkg = False
     install_prefix = INSTALL_PREFIX
     system_osg = False
     parsed = parse_argv()
@@ -542,7 +487,6 @@ def main() -> None:
         force_openmw = True
         force_osg = True
         force_unshield = True
-        # force_pkg = True
         emit_log("Force building all dependencies")
     if parsed.system_bullet:
         system_bullet = True
@@ -568,9 +512,6 @@ def main() -> None:
     if parsed.force_unshield:
         force_unshield = True
         emit_log("Forcing build of Unshield")
-    # if parsed.force_pkg:
-    #     force_pkg = True
-    #     emit_log("Forcing build of package")
     if parsed.install_prefix:
         install_prefix = parsed.install_prefix
         emit_log("Using the install prefix: " + install_prefix)
@@ -777,70 +718,41 @@ def main() -> None:
                 "Unable to determine your distro to install dependencies!  Try again and use '-S' if you know what you are doing."
             )
 
-    if distro and "Ubuntu" in distro or "Debian" in distro:
-        build_env["LDFLAGS"] = "-lz -lbz2"
-    elif distro and "Fedora" in distro:
-        pass
-    else:
-        build_env["LDFLAGS"] = "-llzma -lz -lbz2"
-
     build_type = "Release"
     if with_debug:
         build_type = "Debug"
 
-    build_args = [
-        "-DBOOST_ROOT=/usr/include/boost",
-        "-DCMAKE_BUILD_TYPE=" + build_type,
-        "-DDESIRED_QT_VERSION=5",
-    ]
-
-    # if build_upstream_osg:
-    #     osg = os.path.join(INSTALL_PREFIX, "osg")
-    if system_osg:
-        osg = None
-    else:
-        osg = os.path.join(INSTALL_PREFIX, "osg-openmw")
-
-    if not system_bullet or force_bullet:
-        use_bullet = True
-        bullet = os.path.join(INSTALL_PREFIX, "bullet")
-    else:
-        use_bullet = False
-        bullet = ""
-
-    full_args = build_args + format_openmw_cmake_args(
-        bullet, osg, use_bullet=use_bullet
-    )
+    build_args = ["-DCMAKE_BUILD_TYPE=" + build_type, "-DDESIRED_QT_VERSION=5"]
 
     # Don't build the save importer..
     if not with_essimporter:
-        full_args.append("-DBUILD_ESSIMPORTER=no")
+        build_args.append("-DBUILD_ESSIMPORTER=no")
 
     if without_cs:
         emit_log("NOT building the openmw-cs executable ...")
-        full_args.append("-DBUILD_OPENCS=no")
+        build_args.append("-DBUILD_OPENCS=no")
 
     if without_iniimporter:
         emit_log("NOT building the openmw-iniimporter executable ...")
-        full_args.append("-DBUILD_MWINIIMPORTER=no")
+        build_args.append("-DBUILD_MWINIIMPORTER=no")
 
     if without_launcher:
         emit_log("NOT building the openmw-launcher executable ...")
-        full_args.append("-DBUILD_LAUNCHER=no")
+        build_args.append("-DBUILD_LAUNCHER=no")
 
     if without_wizard:
         emit_log("NOT building the openmw-wizard executable ...")
-        full_args.append("-DBUILD_WIZARD=no")
+        build_args.append("-DBUILD_WIZARD=no")
 
     if with_debug:
-        full_args.append("-DOPENMW_LTO_BUILD=off")
+        build_args.append("-DOPENMW_LTO_BUILD=off")
     else:
-        full_args.append("-DOPENMW_LTO_BUILD=on")
+        build_args.append("-DOPENMW_LTO_BUILD=on")
 
     build_library(
         openmw,
         check_file=os.path.join(install_prefix, openmw, "bin", "openmw"),
-        cmake_args=full_args,
+        cmake_args=build_args,
         clone_dest="openmw",
         cpus=cpus,
         env=build_env,
