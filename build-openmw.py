@@ -53,7 +53,7 @@ VOID_PKGS = "make SDL2-devel boost-devel bullet-devel cmake ffmpeg-devel freetyp
 VOID_TES3MP_PKGS = "LuaJIT-devel"
 
 PROG = "build-openmw"
-VERSION = "1.12"
+VERSION = "1.13"
 
 
 def emit_log(msg: str, level=logging.INFO, quiet=False, *args, **kwargs) -> None:
@@ -270,18 +270,11 @@ def format_openmw_cmake_args(bullet_path: str, osg_path: str, use_bullet=False) 
 
     if use_bullet:
         args.append(
-            "-DBULLET_DYNAMICS_LIBRARY={}/lib/libBullet3Dynamics.so".format(bullet_path)
-        )
-        args.append(
-            "-DBULLET_COLLISION_LIBRARY={}/lib/libBullet3Collision.so".format(
+            "-DBULLET_COLLISION_LIBRARY={}/lib/libBulletCollision.so".format(
                 bullet_path
             )
         )
         args.append("-DBULLET_MATH_LIBRARY={}/lib/libLinearMath.so".format(bullet_path))
-        args.append(
-            "-DBULLET_SOFTBODY_LIBRARY={}/lib/libBulletSoftBody.so".format(bullet_path)
-        )
-        args.append("-DBULLET_INCLUDE_DIR={}/include".format(bullet_path))
 
     return args
 
@@ -764,7 +757,8 @@ def main() -> None:
                 "-DINSTALL_LIBS=on",
                 "-DBUILD_SHARED_LIBS=on",
                 "-DBULLET2_MULTITHREADING=on",
-                "-DBT_USE_DOUBLE_PRECISION=on",
+                "-DUSE_DOUBLE_PRECISION=on",
+                "-DCMAKE_BUILD_TYPE=Release",
             ],
             cpus=cpus,
             force=force_bullet,
