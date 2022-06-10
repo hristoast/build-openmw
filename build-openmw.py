@@ -9,6 +9,7 @@ import sys
 
 
 BULLET_VERSION = "3.17"
+FFMPEG_VERSION = "n4.4.1"
 MYGUI_VERSION = "3.4.1"
 UNSHIELD_VERSION = "1.4.2"
 OPENMW_OSG_BRANCH = "3.6"
@@ -121,6 +122,35 @@ def build_library(
     verbose=False,
     version="master",
 ):
+    def _configure_make():
+        emit_log("{} building with configure and make!".format(libname))
+
+        emit_log("{} running make clean ...".format(libname))
+        out, err = execute_shell(["make", "clean"], verbose=verbose)[1]
+        # if err:
+        #     error_and_die(err.decode("utf-8"))
+
+        emit_log("{} running configure ...".format(libname))
+        out, err = execute_shell(
+            ["./configure", "--prefix={0}/{1}".format(install_prefix, libname)],
+            verbose=verbose,
+        )[1]
+        if err:
+            error_and_die(err.decode("utf-8"))
+
+        emit_log("{} running make (this will take a while) ...".format(libname))
+        exitcode, output = execute_shell(["make", "-j{}".format(cpus)], verbose=verbose)
+        if exitcode != 0:
+            emit_log(output[1])
+            error_and_die("make exited nonzero!")
+
+        emit_log("{} running make install ...".format(libname))
+        out, err = execute_shell(["make", "install"], verbose=verbose)[1]
+        if err:
+            error_and_die(err.decode("utf-8"))
+
+        emit_log("{} installed successfully!".format(libname))
+
     def _git_clean_src():
         os.chdir(os.path.join(src_dir, clone_dest))
         if force:
@@ -207,21 +237,25 @@ def build_library(
                 emit_log(output[1])
                 error_and_die("cmake exited nonzero!")
 
-        emit_log("{} running make (this will take a while) ...".format(libname))
-        exitcode, output = execute_shell(
-            ["make", "-j{}".format(cpus)], env=env, verbose=verbose
-        )
-        if exitcode != 0:
-            emit_log(output[1])
-            error_and_die("make exited nonzero!")
+            emit_log("{} running make (this will take a while) ...".format(libname))
+            exitcode, output = execute_shell(
+                ["make", "-j{}".format(cpus)], env=env, verbose=verbose
+            )
+            if exitcode != 0:
+                emit_log(output[1])
+                error_and_die("make exited nonzero!")
 
-        if make_install:
-            emit_log("{} running make install ...".format(libname))
-            out, err = execute_shell(["make", "install"], env=env, verbose=verbose)[1]
-            if err:
-                error_and_die(err.decode("utf-8"))
+            if make_install:
+                emit_log("{} running make install ...".format(libname))
+                out, err = execute_shell(["make", "install"], env=env, verbose=verbose)[
+                    1
+                ]
+                if err:
+                    error_and_die(err.decode("utf-8"))
 
-            emit_log("{} installed successfully".format(libname))
+                emit_log("{} installed successfully".format(libname))
+        else:
+            _configure_make()
 
 
 def get_distro() -> tuple:
@@ -333,6 +367,11 @@ def parse_argv() -> None:
         help="Build LibBullet, rather than use the system package.",
     )
     options.add_argument(
+        "--build-ffmpeg",
+        action="store_true",
+        help="Build FFMPEG, rather than use the system package.",
+    )
+    options.add_argument(
         "--build-mygui",
         action="store_true",
         help="Build MyGUI, rather than use the system package.",
@@ -344,6 +383,9 @@ def parse_argv() -> None:
     )
     options.add_argument(
         "--force-bullet", action="store_true", help="Force build LibBullet."
+    )
+    options.add_argument(
+        "--force-ffmpeg", action="store_true", help="Force build FFMPEG."
     )
     options.add_argument(
         "--force-mygui", action="store_true", help="Force build MyGUI."
@@ -456,9 +498,11 @@ def main() -> None:
     cpus = CPUS
     distro = None
     system_bullet = False
+    build_ffmpeg = False
     build_mygui = False
     build_unshield = False
     force_bullet = False
+    force_ffmpeg = False
     force_mygui = False
     force_openmw = False
     force_osg = False
@@ -484,6 +528,7 @@ def main() -> None:
 
     if parsed.force_all:
         force_bullet = True
+        force_ffmpeg = True
         force_mygui = True
         force_openmw = True
         force_osg = True
@@ -492,6 +537,9 @@ def main() -> None:
     if parsed.system_bullet:
         system_bullet = True
         emit_log("Using the system LibBullet")
+    if parsed.build_ffmpeg:
+        build_ffmpeg = True
+        emit_log("Building FFMPEG")
     if parsed.build_mygui:
         build_mygui = True
         emit_log("Building MyGUI")
@@ -501,6 +549,9 @@ def main() -> None:
     if parsed.force_bullet:
         force_bullet = True
         emit_log("Forcing build of LibBullet")
+    if parsed.force_ffmpeg:
+        force_ffmpeg = True
+        emit_log("Forcing build of FFMPEG")
     if parsed.force_mygui:
         force_mygui = True
         emit_log("Forcing build of MyGUI")
@@ -596,7 +647,22 @@ def main() -> None:
     ensure_dir(install_prefix)
     ensure_dir(src_dir)
 
-    if not system_osg:
+    if build_ffmpeg or force_ffmpeg:
+        # FFMPEG
+        build_library(
+            "ffmpeg",
+            check_file=os.path.join(install_prefix, "ffmpeg", "bin", "ffmpeg"),
+            cmake=False,
+            cpus=cpus,
+            force=force_ffmpeg,
+            git_url="https://github.com/FFmpeg/FFmpeg.git",
+            install_prefix=install_prefix,
+            src_dir=src_dir,
+            verbose=verbose,
+            version=FFMPEG_VERSION,
+        )
+
+    if not static_deps and not system_osg:
         # OSG-OPENMW
 
         build_library(
@@ -699,7 +765,8 @@ def main() -> None:
 
     if not system_bullet or force_bullet:
         prefix_path += ":{0}/bullet"
-    if build_mygui or force_mygui:
+    if not build_ffmpeg or force_ffmpeg:
+        prefix_path += ":{0}/ffmpeg"
         prefix_path += ":{0}/mygui"
     if build_unshield or force_unshield:
         prefix_path += ":{0}/unshield"
