@@ -662,7 +662,7 @@ def main() -> None:
             version=FFMPEG_VERSION,
         )
 
-    if not static_deps and not system_osg:
+    if not system_osg:
         # OSG-OPENMW
 
         build_library(
