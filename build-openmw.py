@@ -819,6 +819,11 @@ def main() -> None:
     else:
         build_args.append("-DOPENMW_LTO_BUILD=on")
 
+    if not system_osg:
+        build_args.append(
+            "-DOSG_DIR=" + os.path.join(install_prefix, "osg-openmw"),
+        )
+
     build_library(
         openmw,
         check_file=os.path.join(install_prefix, openmw, "bin", "openmw"),
