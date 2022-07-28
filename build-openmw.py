@@ -586,7 +586,8 @@ def main() -> None:
         skip_install_pkgs = parsed.skip_install_pkgs
         emit_log("Package installs will be skipped")
     if parsed.system_osg:
-        system_osg = False
+        system_osg = True
+        emit_log("The system OSG will be used.")
         emit_log("The system OSG will be used.")
     if parsed.src_dir:
         src_dir = parsed.src_dir
