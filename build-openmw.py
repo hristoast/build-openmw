@@ -10,7 +10,7 @@ import sys
 
 BULLET_VERSION = "3.17"
 FFMPEG_VERSION = "n4.4.1"
-MYGUI_VERSION = "3.4.1"
+MYGUI_VERSION = "MyGUI3.4.1"
 UNSHIELD_VERSION = "1.4.2"
 OPENMW_OSG_BRANCH = "3.6"
 CPUS = os.cpu_count() + 1
@@ -642,6 +642,7 @@ def main() -> None:
             # Isn't always necessarily exit-worthy
             emit_log("Stderr received: " + err.decode())
 
+    src_dir = os.path.join(install_prefix, "src")
     # This is a serious edge case, but let's
     # show a sane error when /opt doesn't exist.
     ensure_dir(os.path.join("/", "opt"))
@@ -731,7 +732,7 @@ def main() -> None:
             check_file=os.path.join(
                 install_prefix,
                 "mygui",
-                "lib64",  # TODO: does this change, distro to distro?
+                "lib",  # TODO: does this change, distro to distro?
                 "libMyGUIEngine.so",
             ),
             cmake_args=[
