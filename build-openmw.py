@@ -779,8 +779,9 @@ def main() -> None:
             check_file=os.path.join(
                 install_prefix,
                 "mygui",
-                "lib",  # TODO: does this change, distro to distro?
-                "libMyGUIEngine.so",
+                "include",
+                "MYGUI",
+                "MyGUI.h",
             ),
             cmake_args=[
                 "-DMYGUI_BUILD_TOOLS=OFF",
@@ -816,7 +817,7 @@ def main() -> None:
     if build_sdl2:
         build_library(
             "sdl2",
-            check_file=os.path.join(install_prefix, "sdl2", "bin", "qmake"),  # TODO
+            check_file=os.path.join(install_prefix, "sdl2", "bin", "sdl2-config"),
             cmake=False,
             cpus=cpus,
             force=force_sdl2,
