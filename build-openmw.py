@@ -566,7 +566,7 @@ def main() -> None:
         force_mygui = True
         force_openmw = True
         force_osg = True
-        force_qt = True
+        force_qt5 = True
         force_unshield = True
         emit_log("Force building all dependencies")
     if parsed.system_bullet:
