@@ -531,7 +531,7 @@ def main() -> None:
     build_ffmpeg = False
     build_mygui = False
     build_sdl2 = False
-    build_qt = False
+    build_qt5 = False
     build_unshield = False
     force_bullet = False
     force_ffmpeg = False
@@ -578,8 +578,8 @@ def main() -> None:
     if parsed.build_mygui:
         build_mygui = True
         emit_log("Building MyGUI")
-    if parsed.build_qt:
-        build_qt = True
+    if parsed.build_qt5:
+        build_qt5 = True
         emit_log("Building Qt")
     if parsed.build_sdl2:
         build_sdl2 = True
@@ -798,7 +798,7 @@ def main() -> None:
         )
 
     # Qt5 (base)
-    if build_qt:
+    if build_qt5:
         build_library(
             "qt5",
             check_file=os.path.join(install_prefix, "qt5", "bin", "qmake"),
@@ -847,7 +847,7 @@ def main() -> None:
     if not build_ffmpeg or force_ffmpeg:
         prefix_path += ":{0}/ffmpeg"
         prefix_path += ":{0}/mygui"
-    if build_qt or force_qt5:
+    if build_qt5 or force_qt5:
         prefix_path += ":{0}/qt5"
     if build_sdl2 or force_sdl2:
         prefix_path += ":{0}/sdl2"
