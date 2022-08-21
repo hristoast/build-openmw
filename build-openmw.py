@@ -11,6 +11,8 @@ import sys
 BULLET_VERSION = "3.17"
 FFMPEG_VERSION = "n4.4.1"
 MYGUI_VERSION = "MyGUI3.4.1"
+SDL2_VERSION = "release-2.0.14"
+QT_VERSION = "5.15.0"
 UNSHIELD_VERSION = "1.4.2"
 OPENMW_OSG_BRANCH = "3.6"
 CPUS = os.cpu_count() + 1
@@ -131,10 +133,26 @@ def build_library(
         #     error_and_die(err.decode("utf-8"))
 
         emit_log("{} running configure ...".format(libname))
-        out, err = execute_shell(
-            ["./configure", "--prefix={0}/{1}".format(install_prefix, libname)],
-            verbose=verbose,
-        )[1]
+        if libname == "qt5":
+            c = [
+                "./configure",
+                "--prefix={0}/{1}".format(install_prefix, libname),
+                "-opensource",
+                "-confirm-license",
+                "-qt-harfbuzz",
+                "-fontconfig",
+                "-no-use-gold-linker",
+                "-no-mimetype-database",
+                "-nomake",
+                "examples",
+                "-shared",
+            ]
+        else:
+            c = ["./configure", "--prefix={0}/{1}".format(install_prefix, libname)]
+
+        # ./configure -prefix /usr/local -headerdir /usr/local/include/qt5 -opensource -confirm-license -qt-harfbuzz -fontconfig -no-use-gold-linker -no-mimetype-database -nomake examples -shared > ${deps_dir}/qt5.log 2>&1
+
+        out, err = execute_shell(c, verbose=verbose)[1]
         if err:
             error_and_die(err.decode("utf-8"))
 
@@ -377,6 +395,16 @@ def parse_argv() -> None:
         help="Build MyGUI, rather than use the system package.",
     )
     options.add_argument(
+        "--build-qt5",
+        action="store_true",
+        help="Build Qt5, rather than use the system package.",
+    )
+    options.add_argument(
+        "--build-sdl2",
+        action="store_true",
+        help="Build SDL2, rather than use the system package.",
+    )
+    options.add_argument(
         "--build-unshield",
         action="store_true",
         help="Build libunshield, rather than use the system package.",
@@ -390,6 +418,8 @@ def parse_argv() -> None:
     options.add_argument(
         "--force-mygui", action="store_true", help="Force build MyGUI."
     )
+    options.add_argument("--force-qt5", action="store_true", help="Force build Qt5.")
+    options.add_argument("--force-sdl2", action="store_true", help="Force build SDL2.")
     options.add_argument(
         "--force-openmw", action="store_true", help="Force build OpenMW."
     )
@@ -500,10 +530,14 @@ def main() -> None:
     system_bullet = False
     build_ffmpeg = False
     build_mygui = False
+    build_sdl2 = False
+    build_qt = False
     build_unshield = False
     force_bullet = False
     force_ffmpeg = False
     force_mygui = False
+    force_sdl2 = False
+    force_qt5 = False
     force_openmw = False
     force_osg = False
     force_unshield = False
@@ -532,6 +566,7 @@ def main() -> None:
         force_mygui = True
         force_openmw = True
         force_osg = True
+        force_qt = True
         force_unshield = True
         emit_log("Force building all dependencies")
     if parsed.system_bullet:
@@ -543,6 +578,12 @@ def main() -> None:
     if parsed.build_mygui:
         build_mygui = True
         emit_log("Building MyGUI")
+    if parsed.build_qt:
+        build_qt = True
+        emit_log("Building Qt")
+    if parsed.build_sdl2:
+        build_sdl2 = True
+        emit_log("Building SDL2")
     if parsed.build_unshield:
         build_unshield = True
         emit_log("Building Unshield")
@@ -555,6 +596,12 @@ def main() -> None:
     if parsed.force_mygui:
         force_mygui = True
         emit_log("Forcing build of MyGUI")
+    if parsed.force_qt5:
+        force_qt5 = True
+        emit_log("Forcing build of Qt")
+    if parsed.force_sdl2:
+        force_sdl2 = True
+        emit_log("Forcing build of SDL2")
     if parsed.force_openmw:
         force_openmw = True
         emit_log("Forcing build of OpenMW")
@@ -750,6 +797,36 @@ def main() -> None:
             version=MYGUI_VERSION,
         )
 
+    # Qt5 (base)
+    if build_qt:
+        build_library(
+            "qt5",
+            check_file=os.path.join(install_prefix, "qt5", "bin", "qmake"),
+            cmake=False,
+            cpus=cpus,
+            force=force_qt5,
+            git_url="https://github.com/qt/qtbase.git",
+            install_prefix=install_prefix,
+            src_dir=src_dir,
+            verbose=verbose,
+            version=QT_VERSION,
+        )
+
+    # SDL2
+    if build_sdl2:
+        build_library(
+            "sdl2",
+            check_file=os.path.join(install_prefix, "sdl2", "bin", "qmake"),  # TODO
+            cmake=False,
+            cpus=cpus,
+            force=force_sdl2,
+            git_url="https://github.com/libsdl-org/SDL.git",
+            install_prefix=install_prefix,
+            src_dir=src_dir,
+            verbose=verbose,
+            version=SDL2_VERSION,
+        )
+
     # OPENMW
     openmw_sha = get_repo_sha(src_dir, rev=rev, pull=pull, verbose=verbose)
     if openmw_sha:
@@ -770,6 +847,10 @@ def main() -> None:
     if not build_ffmpeg or force_ffmpeg:
         prefix_path += ":{0}/ffmpeg"
         prefix_path += ":{0}/mygui"
+    if build_qt or force_qt5:
+        prefix_path += ":{0}/qt5"
+    if build_sdl2 or force_sdl2:
+        prefix_path += ":{0}/sdl2"
     if build_unshield or force_unshield:
         prefix_path += ":{0}/unshield"
 
