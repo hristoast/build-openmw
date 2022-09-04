@@ -378,6 +378,7 @@ def parse_argv() -> None:
     version_options.add_argument(
         "-b", "--branch", help="The git branch to build (the tip of.)"
     )
+    version_options.add_argument("--sdl-version", help="The git tag to build for SDL2")
     options = parser.add_argument_group("Options")
     options.add_argument(
         "--system-bullet",
@@ -560,6 +561,8 @@ def main() -> None:
     without_launcher = False
     without_wizard = False
 
+    sdl_version = SDL2_VERSION
+
     if parsed.force_all:
         force_bullet = True
         force_ffmpeg = True
@@ -655,6 +658,11 @@ def main() -> None:
         without_launcher = True
     if parsed.without_wizard:
         without_wizard = True
+
+    if parsed.sdl_version:
+        sdl_version = parsed.sdl_version
+        emit_log("Building SDL version: " + patch)
+
     if parsed.branch:
         branch = rev = parsed.branch
         if "/" not in branch:
@@ -841,7 +849,7 @@ def main() -> None:
             install_prefix=install_prefix,
             src_dir=src_dir,
             verbose=verbose,
-            version=SDL2_VERSION,
+            version=sdl_version,
         )
 
     # OPENMW
